@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:simpledelivery/user/user_create_page.dart';
+import 'package:simpledelivery/user/user_edit_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserListingPage extends StatefulWidget {
@@ -141,10 +142,19 @@ class _UserListingPageState extends State<UserListingPage> {
                 isThreeLine: true,
                 trailing: IconButton(
                   icon: const Icon(Icons.edit, color: Colors.grey),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Edit feature coming soon!')),
+                  onPressed: () async {
+                    // Navigate to the edit page, passing the current user's data dictionary
+                    final bool? didUpdate = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => UserEditPage(userData: user),
+                      ),
                     );
+
+                    // If the edit page pops back with 'true', refresh the list to show new data
+                    if (didUpdate == true) {
+                      _fetchUsers();
+                    }
                   },
                 ),
               ),
