@@ -49,10 +49,19 @@ class _AuthPageState extends State<AuthPage> {
         if (user != null) {
           final data = await supabase
               .from('profiles')
-              .select('role')
+              .select('role, is_deleted') // Fetch the deleted status
               .eq('id', user.id)
               .single();
 
+          if (data['is_deleted'] == true) {
+            // If they are soft-deleted, immediately log them out and show an error
+            await supabase.auth.signOut();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This account has been deactivated.')),
+            );
+            return;
+          }
+          
           final String role = data['role'] ?? 'customer';
 
           if (mounted) {
