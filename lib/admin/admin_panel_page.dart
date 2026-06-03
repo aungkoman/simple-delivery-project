@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/way/way_listing_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../user/user_listing_page.dart';
 
@@ -120,6 +121,18 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const UserListingPage()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.route),
+            title: const Text('Way Management'),
+            onTap: () {
+              Navigator.pop(context); // Close the drawer first
+              // Navigate to the User Listing Page
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const WayListingPage()),
               );
             },
           ),
