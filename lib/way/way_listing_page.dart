@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/way/way_create_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WayListingPage extends StatefulWidget {
@@ -79,10 +80,17 @@ class _WayListingPageState extends State<WayListingPage> {
       ),
       // FAB for the admin to manually create a new delivery way
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Create Way feature coming soon!')),
+        onPressed: () async{
+          // Navigate to the create page and wait for it to return
+          final bool? didCreate = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const WayCreatePage()),
           );
+
+          // If a new way was successfully created, refresh the list
+          if (didCreate == true) {
+            _fetchWays();
+          }
         },
         tooltip: 'Add New Way',
         child: const Icon(Icons.add),
