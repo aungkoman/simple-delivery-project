@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/auth_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://nhyeutkgxyiqcxrfojcq.supabase.co',
+    anonKey: 'sb_publishable_Vmh6rfrhGndn3jHJp1XOLw_Z5ZlS6Cz',
+  );
+
   runApp(const MyApp());
 }
 
@@ -11,7 +20,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Delivery App',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -30,7 +39,8 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: .fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const AuthPage(),
+
     );
   }
 }
