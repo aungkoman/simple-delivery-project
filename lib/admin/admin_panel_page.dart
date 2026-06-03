@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../user/user_listing_page.dart';
 
 class AdminPanelPage extends StatefulWidget {
   const AdminPanelPage({super.key});
@@ -25,13 +26,11 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
 
   Future<void> _fetchDashboardStats() async {
     try {
-      // 1. Fetch exact counts directly from Supabase for efficiency
       final admins = await supabase.from('profiles').count(CountOption.exact).eq('role', 'admin');
       final riders = await supabase.from('profiles').count(CountOption.exact).eq('role', 'rider');
       final customers = await supabase.from('profiles').count(CountOption.exact).eq('role', 'customer');
       final ways = await supabase.from('ways').count(CountOption.exact);
 
-      // 2. Update the UI state
       if (mounted) {
         setState(() {
           _adminCount = admins;
@@ -56,7 +55,6 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
     }
   }
 
-  // A reusable widget for the dashboard cards
   Widget _buildStatCard(String title, int count, IconData icon, Color color) {
     return Card(
       elevation: 4,
@@ -83,6 +81,64 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
     );
   }
 
+  // --- NEW DRAWER WIDGET ---
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const DrawerHeader(
+            decoration: BoxDecoration(
+              color: Colors.blue,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Icon(Icons.admin_panel_settings, size: 48, color: Colors.white),
+                SizedBox(height: 8),
+                Text(
+                  'Admin Control',
+                  style: TextStyle(color: Colors.white, fontSize: 24),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.dashboard),
+            title: const Text('Dashboard'),
+            onTap: () {
+              Navigator.pop(context); // Close the drawer
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.people),
+            title: const Text('User Management'),
+            onTap: () {
+              Navigator.pop(context); // Close the drawer first
+              // Navigate to the User Listing Page
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const UserListingPage()),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Logout', style: TextStyle(color: Colors.red)),
+            onTap: () async {
+              Navigator.pop(context);
+              await supabase.auth.signOut();
+              // Optionally route back to your Login Screen here if you aren't using an Auth listener
+              // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AuthPage()));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,11 +155,11 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
           )
         ],
       ),
+      drawer: _buildDrawer(context), // Attach the Drawer here
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
         padding: const EdgeInsets.all(16.0),
-        // Use a GridView to display the stats nicely
         child: GridView.count(
           crossAxisCount: 2,
           crossAxisSpacing: 16,
