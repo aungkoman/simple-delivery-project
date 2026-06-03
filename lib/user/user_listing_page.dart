@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/user/user_create_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserListingPage extends StatefulWidget {
@@ -77,6 +78,17 @@ class _UserListingPageState extends State<UserListingPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('User Management'),
+          actions: [
+            IconButton(onPressed: () async{
+              // Navigate to the create page and wait for it to return
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const UserCreatePage()),
+              );
+              // Refresh the user list automatically when coming back
+              _fetchUsers();
+            }, icon: Icon(Icons.add))
+        ],
       ),
       // RefreshIndicator allows the admin to pull-to-refresh the list
       body: RefreshIndicator(
