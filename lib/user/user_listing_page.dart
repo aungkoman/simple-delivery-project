@@ -29,6 +29,7 @@ class _UserListingPageState extends State<UserListingPage> {
       final response = await supabase
           .from('profiles')
           .select()
+          .eq('is_deleted', false) // 👈 THE MAGIC LINE: Only fetch active users
           .order('role', ascending: true);
 
       if (mounted) {

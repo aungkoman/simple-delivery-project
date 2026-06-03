@@ -54,7 +54,12 @@ class _UserDetailPageState extends State<UserDetailPage> {
       final userId = widget.userData['id'];
 
       // 2. Delete the user from the public.profiles table
-      await supabase.from('profiles').delete().eq('id', userId);
+      // await supabase.from('profiles').delete().eq('id', userId);
+      // 👈 CHANGED: We UPDATE the row instead of DELETING it
+      await supabase
+          .from('profiles')
+          .update({'is_deleted': true})
+          .eq('id', userId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
