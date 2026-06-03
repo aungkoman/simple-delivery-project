@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:simpledelivery/way/way_create_page.dart';
+import 'package:simpledelivery/way/way_edit_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WayListingPage extends StatefulWidget {
@@ -124,78 +125,96 @@ class _WayListingPageState extends State<WayListingPage> {
               elevation: 3,
               margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Row: ID and Status Badge
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Way #${way['id']}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        Chip(
-                          label: Text(
-                            status.toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                          backgroundColor: _getStatusColor(status),
-                          padding: EdgeInsets.zero,
-                        ),
-                      ],
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () async {
+                  // 3. Navigate to Edit Page and wait for result
+                  final bool? didUpdate = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => WayEditPage(wayData: way),
                     ),
-                    const Divider(),
+                  );
 
-                    // Middle Section: Routing
-                    Row(
-                      children: [
-                        const Icon(Icons.storefront, color: Colors.blue, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text('Pickup: $pickup', style: const TextStyle(fontSize: 14))),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.red, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text('Drop: $drop', style: const TextStyle(fontSize: 14))),
-                      ],
-                    ),
+                  // If the admin saved changes, refresh the list!
+                  if (didUpdate == true) {
+                    _fetchWays();
+                  }
+                },
 
-                    const SizedBox(height: 12),
-
-                    // Bottom Section: Personnel
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top Row: ID and Status Badge
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Customer', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                              Text(customerName, style: const TextStyle(fontWeight: FontWeight.w500)),
-                            ],
+                          Text(
+                            'Way #${way['id']}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              const Text('Rider', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                              Text(riderName, style: const TextStyle(fontWeight: FontWeight.w500)),
-                            ],
+                          Chip(
+                            label: Text(
+                              status.toUpperCase(),
+                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                            backgroundColor: _getStatusColor(status),
+                            padding: EdgeInsets.zero,
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                      const Divider(),
+
+                      // Middle Section: Routing
+                      Row(
+                        children: [
+                          const Icon(Icons.storefront, color: Colors.blue, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text('Pickup: $pickup', style: const TextStyle(fontSize: 14))),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, color: Colors.red, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text('Drop: $drop', style: const TextStyle(fontSize: 14))),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Bottom Section: Personnel
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Customer', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                Text(customerName, style: const TextStyle(fontWeight: FontWeight.w500)),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text('Rider', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                Text(riderName, style: const TextStyle(fontWeight: FontWeight.w500)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
