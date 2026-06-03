@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:simpledelivery/user/user_create_page.dart';
+import 'package:simpledelivery/user/user_detail_page.dart';
 import 'package:simpledelivery/user/user_edit_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -118,7 +119,21 @@ class _UserListingPageState extends State<UserListingPage> {
             return Card(
               elevation: 2,
               margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+
               child: ListTile(
+                onTap: () async {
+                  final bool? needsRefresh = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => UserDetailPage(userData: user),
+                    ),
+                  );
+
+                  // If the user was deleted or edited, refresh the list!
+                  if (needsRefresh == true) {
+                    _fetchUsers();
+                  }
+                },
                 leading: CircleAvatar(
                   backgroundColor: _getRoleColor(role).withOpacity(0.2),
                   child: Icon(_getRoleIcon(role), color: _getRoleColor(role)),
