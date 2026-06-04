@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/rider/way/way_detail_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // Import your AuthPage if you want to route back to login on logout
 // import 'auth_page.dart';
@@ -147,54 +148,71 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
               elevation: 4,
               margin: const EdgeInsets.only(bottom: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Order #${way['id']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                        Text(status.toUpperCase(), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-                      ],
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () async {
+                  // Navigate to Detail Page instead!
+                  final bool? needsRefresh = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => WayDetailPage(wayData: way),
                     ),
-                    const Divider(height: 24),
+                  );
 
-                    // Customer Info
-                    Row(
-                      children: [
-                        const Icon(Icons.person, color: Colors.grey, size: 20),
-                        const SizedBox(width: 8),
-                        Text('$customerName ($customerPhone)', style: const TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Locations
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.storefront, color: Colors.blue, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text('Pickup: ${way['pickup_location']}')),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.red, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text('Drop: ${way['drop_location']}')),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Dynamic Action Button
-                    _buildActionButton(way['id'], status),
-                  ],
+                  // If something was updated in the details, refresh the list
+                  if (needsRefresh == true) {
+                    _fetchMyWays();
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Order #${way['id']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                          Text(status.toUpperCase(), style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                
+                      // Customer Info
+                      Row(
+                        children: [
+                          const Icon(Icons.person, color: Colors.grey, size: 20),
+                          const SizedBox(width: 8),
+                          Text('$customerName ($customerPhone)', style: const TextStyle(fontSize: 16)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                
+                      // Locations
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.storefront, color: Colors.blue, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text('Pickup: ${way['pickup_location']}')),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.location_on, color: Colors.red, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text('Drop: ${way['drop_location']}')),
+                        ],
+                      ),
+                
+                      const SizedBox(height: 24),
+                
+                      // Dynamic Action Button
+                      _buildActionButton(way['id'], status),
+                    ],
+                  ),
                 ),
               ),
             );
