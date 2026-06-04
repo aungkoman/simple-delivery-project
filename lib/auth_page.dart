@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/rider/rider_dashboard_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'admin/admin_panel_page.dart';
 
@@ -68,6 +69,11 @@ class _AuthPageState extends State<AuthPage> {
             if (role == 'admin') {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (context) => const AdminPanelPage()),
+              );
+            }
+            if (role == 'rider') {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const RiderDashboardPage()),
               );
             } else {
               ScaffoldMessenger.of(context).showSnackBar(

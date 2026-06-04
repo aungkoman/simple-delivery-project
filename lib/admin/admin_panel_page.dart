@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:simpledelivery/way/way_listing_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../auth_page.dart';
 import '../user/user_listing_page.dart';
 
 class AdminPanelPage extends StatefulWidget {
@@ -144,7 +145,7 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
               Navigator.pop(context);
               await supabase.auth.signOut();
               // Optionally route back to your Login Screen here if you aren't using an Auth listener
-              // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AuthPage()));
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AuthPage()));
             },
           ),
         ],
