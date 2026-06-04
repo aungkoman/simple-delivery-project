@@ -40,12 +40,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         _customerName = profileData['full_name'] ?? 'Customer';
       }
 
-      // 2. Fetch ALL ways for this customer, joining the Rider's info this time
+      // 2. UPDATED QUERY: Fetch both Rider AND Customer profile details
       final response = await supabase
           .from('ways')
-          .select('*, rider:profiles!ways_rider_id_fkey(full_name, phone)')
+          .select('''
+            *, 
+            rider:profiles!ways_rider_id_fkey(full_name, phone),
+            customer:profiles!ways_customer_id_fkey(full_name, phone)
+          ''')
           .eq('customer_id', user.id)
-          .order('id', ascending: false); // Newest first
+          .order('id', ascending: false);
 
       // 3. Sort the data into Active vs Past orders
       final active = [];
@@ -88,7 +92,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     }
   }
 
-  // A reusable widget to build the lists for both tabs
+  // UPDATED UI: A reusable widget to build the lists with personnel info
   Widget _buildOrderList(List<dynamic> ways, String emptyMessage) {
     if (ways.isEmpty) {
       return Center(
@@ -102,8 +106,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       itemBuilder: (context, index) {
         final way = ways[index];
         final status = way['status'] ?? 'pending';
-        final riderName = way['rider']?['full_name'] ?? 'Waiting for Assignment';
+
+        // Extract Rider Info
+        final riderName = way['rider']?['full_name'] ?? 'Unassigned';
         final riderPhone = way['rider']?['phone'] ?? '';
+
+        // Extract Customer Info
+        final customerName = way['customer']?['full_name'] ?? _customerName;
+        final customerPhone = way['customer']?['phone'] ?? '';
 
         return Card(
           elevation: 3,
@@ -122,6 +132,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // --- Header ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -134,20 +145,70 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     ],
                   ),
                   const Divider(),
+
+                  // --- Locations ---
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.motorcycle, color: Colors.grey, size: 20),
+                      const Icon(Icons.storefront, color: Colors.blue, size: 18),
                       const SizedBox(width: 8),
-                      Text('Rider: $riderName ${riderPhone.isNotEmpty ? '($riderPhone)' : ''}'),
+                      Expanded(child: Text('From: ${way['pickup_location']}', maxLines: 2, overflow: TextOverflow.ellipsis)),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.location_on, color: Colors.red, size: 20),
+                      const Icon(Icons.location_on, color: Colors.red, size: 18),
                       const SizedBox(width: 8),
-                      Expanded(child: Text('To: ${way['drop_location']}', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      Expanded(child: Text('To: ${way['drop_location']}', maxLines: 2, overflow: TextOverflow.ellipsis)),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // --- Personnel Information Block ---
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Customer Side
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Customer', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 2),
+                              Text(customerName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                              if (customerPhone.isNotEmpty)
+                                Text(customerPhone, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                            ],
+                          ),
+                        ),
+
+                        // Vertical Divider
+                        Container(width: 1, height: 30, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 8)),
+
+                        // Rider Side
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text('Rider', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 2),
+                              Text(riderName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), textAlign: TextAlign.right),
+                              if (riderPhone.isNotEmpty)
+                                Text(riderPhone, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -192,11 +253,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2, // We have 2 tabs
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('My Orders'),
-          backgroundColor: Colors.green, // Distinct color for Customer App
+          backgroundColor: Colors.green,
           bottom: const TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,
@@ -213,12 +274,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ? const Center(child: CircularProgressIndicator())
             : TabBarView(
           children: [
-            // Tab 1: Active
             RefreshIndicator(
               onRefresh: _fetchCustomerData,
               child: _buildOrderList(_activeWays, 'You have no active orders right now.'),
             ),
-            // Tab 2: Past
             RefreshIndicator(
               onRefresh: _fetchCustomerData,
               child: _buildOrderList(_pastWays, 'You have no past order history.'),
@@ -230,16 +289,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   }
 
   Widget _fab(){
-    return FloatingActionButton.extended(onPressed: () async {
-      // Navigate to the customer creation page and wait for a success result
-      final bool? didCreate = await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const CustomerCreateWayPage()),
-      );
-      // If a new delivery request was submitted, refresh the tabs automatically
-      if (didCreate == true) {
-        _fetchCustomerData();
-      }
-    }, label: Text("New Order") , icon: Icon(Icons.add),);
+    return FloatingActionButton.extended(
+      backgroundColor: Colors.green,
+      foregroundColor: Colors.white,
+      onPressed: () async {
+        final bool? didCreate = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CustomerCreateWayPage()),
+        );
+        if (didCreate == true) {
+          _fetchCustomerData();
+        }
+      },
+      label: const Text("New Order", style: TextStyle(fontWeight: FontWeight.bold)),
+      icon: const Icon(Icons.add),
+    );
   }
 }

@@ -13,6 +13,9 @@ class _CustomerCreateWayPageState extends State<CustomerCreateWayPage> {
 
   final _pickupController = TextEditingController();
   final _dropController = TextEditingController();
+  final _descriptionController = TextEditingController(); // New field for package details
+  final _remarkController = TextEditingController();      // New field for delivery instructions
+
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
 
@@ -20,6 +23,8 @@ class _CustomerCreateWayPageState extends State<CustomerCreateWayPage> {
   void dispose() {
     _pickupController.dispose();
     _dropController.dispose();
+    _descriptionController.dispose();
+    _remarkController.dispose();
     super.dispose();
   }
 
@@ -38,6 +43,8 @@ class _CustomerCreateWayPageState extends State<CustomerCreateWayPage> {
         'rider_id': null,                // Left empty for Admin to assign later
         'pickup_location': _pickupController.text.trim(),
         'drop_location': _dropController.text.trim(),
+        'description': _descriptionController.text.trim(), // Save description
+        'remark': _remarkController.text.trim(),           // Save remark
         'status': 'pending',             // Automatically starts as pending
       });
 
@@ -83,6 +90,24 @@ class _CustomerCreateWayPageState extends State<CustomerCreateWayPage> {
               ),
               const SizedBox(height: 24),
 
+              // --- Package Description Input ---
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Package Description',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.inventory_2, color: Colors.brown),
+                  hintText: 'e.g., 2 medium boxes of clothes (Fragile)',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please describe what is being delivered.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+
               // --- Pickup Location Input ---
               TextFormField(
                 controller: _pickupController,
@@ -118,6 +143,20 @@ class _CustomerCreateWayPageState extends State<CustomerCreateWayPage> {
                 },
               ),
               const SizedBox(height: 40),
+              // --- Remarks / Instructions Input ---
+              TextFormField(
+                controller: _remarkController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Delivery Notes / Remarks (Optional)',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                  prefixIcon: Icon(Icons.note, color: Colors.orange),
+                  hintText: 'e.g., Please call when you arrive, drop at the back door...',
+                ),
+              ),
+              const SizedBox(height: 32),
+
 
               // --- Submit Button ---
               ElevatedButton(

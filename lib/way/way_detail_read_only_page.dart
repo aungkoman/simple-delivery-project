@@ -152,6 +152,7 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
     final customerName = widget.wayData['customer']?['full_name'] ?? 'Unknown Customer';
     final riderName = widget.wayData['rider']?['full_name'] ?? 'Unassigned';
     final remark = widget.wayData['remark'];
+    final description = widget.wayData['description'] ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -189,6 +190,24 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
                           const Icon(Icons.note, color: Colors.amber),
                           const SizedBox(width: 8),
                           Expanded(child: Text(remark, style: const TextStyle(fontStyle: FontStyle.italic))),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (description != null && description.toString().trim().isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        border: Border.all(color: Colors.amber.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.note, color: Colors.teal),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(description, style: const TextStyle(fontStyle: FontStyle.italic))),
                         ],
                       ),
                     ),
