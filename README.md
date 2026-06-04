@@ -18,3 +18,7 @@ supabase with aungkoman's github connected.flutter run
 ```bash
 flutter build web
 ```
+
+## 2026-06-04 Tasks
+
+- [ ] Phone No ဖြင့် account ဖောက်ရန်။ login ဝင်ရန်

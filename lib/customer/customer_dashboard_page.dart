@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/auth_page.dart';
 import 'package:simpledelivery/customer/way/customer_create_way_page.dart';
 import 'package:simpledelivery/way/way_detail_read_only_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -243,6 +244,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             onTap: () async {
               Navigator.pop(context);
               await supabase.auth.signOut();
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AuthPage()));
             },
           ),
         ],

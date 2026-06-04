@@ -12,10 +12,10 @@ class AuthPage extends StatefulWidget {
 }
 
 class _AuthPageState extends State<AuthPage> {
-  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController(); // Email အစား Phone
   final _passwordController = TextEditingController();
-  final _fullNameController = TextEditingController(); // New field for Profile
-  final _displayNameController = TextEditingController(); // New field for Auth Account
+  final _fullNameController = TextEditingController();
+  final _displayNameController = TextEditingController();
 
   bool _isLoading = false;
   bool _isLogin = true;
@@ -24,11 +24,18 @@ class _AuthPageState extends State<AuthPage> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _fullNameController.dispose();
     _displayNameController.dispose();
     super.dispose();
+  }
+
+  // ဖုန်းနံပါတ်ကို Dummy Email Format သို့ ပြောင်းပေးသော Function
+  String _formatPhoneToEmail(String phone) {
+    // ကိန်းဂဏန်းများသာ ကျန်အောင် စစ်ထုတ်ခြင်း (ဥပမာ - space များ၊ + များ ပါလာလျှင် ဖယ်ရန်)
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    return '$cleanPhone@simpledelivery.dummy.com';
   }
 
   Future<void> _authenticate() async {
@@ -37,13 +44,20 @@ class _AuthPageState extends State<AuthPage> {
     });
 
     try {
-      final email = _emailController.text.trim();
+      final phone = _phoneController.text.trim();
       final password = _passwordController.text.trim();
+
+      if (phone.isEmpty || password.isEmpty) {
+        throw const AuthException('Please enter both phone number and password.');
+      }
+
+      // Supabase သို့ မပို့ခင် ဖုန်းနံပါတ်ကို Email Format ပြောင်းခြင်း
+      final pseudoEmail = _formatPhoneToEmail(phone);
 
       if (_isLogin) {
         // Log in logic
         final AuthResponse res = await supabase.auth.signInWithPassword(
-          email: email,
+          email: pseudoEmail,
           password: password,
         );
 
@@ -58,12 +72,14 @@ class _AuthPageState extends State<AuthPage> {
           if (data['is_deleted'] == true) {
             // If they are soft-deleted, immediately log them out and show an error
             await supabase.auth.signOut();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('This account has been deactivated.')),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('This account has been deactivated.')),
+              );
+            }
             return;
           }
-          
+
           final String role = data['role'] ?? 'customer';
 
           if (mounted) {
@@ -71,13 +87,11 @@ class _AuthPageState extends State<AuthPage> {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (context) => const AdminPanelPage()),
               );
-            }
-            if (role == 'rider') {
+            } else if (role == 'rider') {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (context) => const RiderDashboardPage()),
               );
-            }
-            if (role == 'customer') {
+            } else if (role == 'customer') {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (context) => const CustomerDashboardPage()),
               );
@@ -89,27 +103,31 @@ class _AuthPageState extends State<AuthPage> {
           }
         }
       } else {
-        // Register logic with extra metadata attributes
+        // Register logic
         final fullName = _fullNameController.text.trim();
-        final displayName = _displayNameController.text.trim();
+        final displayName = fullName;
 
-        if (fullName.isEmpty || displayName.isEmpty) {
-          throw const AuthException('Please fill in all name fields.');
+        if (fullName.isEmpty) {
+          throw const AuthException('Please fill in your full name.');
         }
 
         await supabase.auth.signUp(
-          email: email,
+          email: pseudoEmail,
           password: password,
-            data: {
-              'full_name': fullName,       // Picked up by database trigger
-              'display_name': displayName, // Saved natively in the Auth Account metadata
-            },
+          data: {
+            'full_name': fullName,
+            'display_name': displayName,
+          },
         );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Registration successful! Please check your email.')),
+            const SnackBar(content: Text('Registration successful! You can now log in.')),
           );
+          // ချက်ချင်း Login မဝင်စေချင်လျှင် Login Form သို့ ပြန်ပြောင်းပေးနိုင်ပါသည်
+          setState(() {
+            _isLogin = true;
+          });
         }
       }
     } on AuthException catch (error) {
@@ -141,13 +159,13 @@ class _AuthPageState extends State<AuthPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView( // Added to prevent overflow when keyboard appears
+        child: SingleChildScrollView(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 40),
-              // Only show name fields during registration
+
               if (!_isLogin) ...[
                 TextField(
                   controller: _fullNameController,
@@ -157,24 +175,20 @@ class _AuthPageState extends State<AuthPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: _displayNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Display Name (App Nickname)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
               ],
+
+              // Phone Number Input
               TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
+                controller: _phoneController,
+                keyboardType: TextInputType.phone, // ပြောင်းလဲထားသော အပိုင်း
                 decoration: const InputDecoration(
-                  labelText: 'Email',
+                  labelText: 'Phone Number',
+                  hintText: '09123456789',
                   border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
+
               TextField(
                 controller: _passwordController,
                 obscureText: true,
@@ -184,6 +198,7 @@ class _AuthPageState extends State<AuthPage> {
                 ),
               ),
               const SizedBox(height: 24),
+
               ElevatedButton(
                 onPressed: _isLoading ? null : _authenticate,
                 child: Text(_isLoading ? 'Loading...' : (_isLogin ? 'Login' : 'Register')),
