@@ -27,3 +27,13 @@ flutter build web
 - [ ] pickup / drop off ->  personal information, contact and lat, lng 
 - [ ] add pricing
 - [ ] created_at နဲ့ updated_at ထည့်ပြရန်
+
+## ဘာတွေ လိုသေးလဲ?
+
+- [ ] user self management
+- [ ] Row Level Security (RLS) ဖွင့်ရန်။
+
+
+## ဘာတွေ သုံးလို့ ရပြီလဲ?
+
+- [ ] 

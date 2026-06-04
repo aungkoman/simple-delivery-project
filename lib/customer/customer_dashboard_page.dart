@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:simpledelivery/auth_page.dart';
+import 'package:simpledelivery/customer/profile/profile_page.dart';
 import 'package:simpledelivery/customer/way/customer_create_way_page.dart';
 import 'package:simpledelivery/way/way_detail_read_only_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -134,30 +135,117 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
+  Widget _buildCustomDrawerHeader(BuildContext context) {
+    return Container(
+      // Ensure the content doesn't go under the status bar notch
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 24,
+        bottom: 24,
+        left: 20,
+        right: 20,
+      ),
+      decoration: BoxDecoration(
+        // A subtle gradient makes it feel much more premium than a flat color
+        gradient: LinearGradient(
+          colors: [Colors.green.shade800, Colors.green.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Avatar
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: CircleAvatar(
+                  radius: 32,
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.green.shade700,
+                  child: Text(
+                    _customerName.isNotEmpty ? _customerName[0].toUpperCase() : 'C',
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+
+              // Optional: Edit Profile / Settings Icon Button
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Icon(Icons.edit_outlined, color: Colors.white.withOpacity(0.8), size: 20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Name
+          Text(
+            _customerName,
+            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 6),
+
+          // Phone Info Row
+          Row(
+            children: [
+              Icon(Icons.phone_outlined, color: Colors.white.withOpacity(0.8), size: 16),
+              const SizedBox(width: 8),
+              Text(
+                _customerPhone,
+                style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+
+          // Conditional Email Info Row
+          if (_customerEmail.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.email_outlined, color: Colors.white.withOpacity(0.8), size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _customerEmail,
+                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       child: Column(
         children: [
-          UserAccountsDrawerHeader(
-            decoration: BoxDecoration(
-              color: Colors.green.shade700,
-            ),
-            currentAccountPicture: CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Text(
-                _customerName.isNotEmpty ? _customerName[0].toUpperCase() : 'C',
-                style: TextStyle(fontSize: 24, color: Colors.green.shade700, fontWeight: FontWeight.bold),
-              ),
-            ),
-            accountName: Text(_customerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            accountEmail: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_customerPhone),
-                if (_customerEmail.isNotEmpty) Text(_customerEmail, style: const TextStyle(color: Colors.white70)),
-              ],
-            ),
-          ),
+          _buildCustomDrawerHeader(context),
           ListTile(
             leading: const Icon(Icons.support_agent_outlined),
             title: const Text('Support'),
