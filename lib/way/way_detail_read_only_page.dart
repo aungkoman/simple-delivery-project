@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+// import 'package:url_launcher/url_launcher.dart'; // Recommended for tap-to-call
 
 class WayDetailReadOnlyPage extends StatefulWidget {
   final Map<String, dynamic> wayData;
@@ -40,36 +41,230 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
       if (mounted) {
         setState(() => _isLoadingHistory = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading timeline: $error')),
+          SnackBar(
+            content: Text('Error loading timeline: $error'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
   }
 
+  // --- HELPER METHODS ---
+
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'pending': return Colors.orange;
-      case 'picked_up': return Colors.blue;
-      case 'delivering': return Colors.purple;
-      case 'dropped': case 'delivered': return Colors.green;
-      case 'rejected': case 'cancelled': return Colors.red;
-      default: return Colors.grey;
+      case 'pending': return Colors.orange.shade600;
+      case 'picked_up': return Colors.blue.shade600;
+      case 'delivering': return Colors.purple.shade600;
+      case 'dropped':
+      case 'delivered': return Colors.green.shade600;
+      case 'rejected':
+      case 'cancelled': return Colors.red.shade600;
+      default: return Colors.grey.shade600;
     }
   }
 
   String _formatDate(String isoString) {
+    // Pro-tip: In production, use the 'intl' package (DateFormat) for better localization.
     final date = DateTime.parse(isoString).toLocal();
     final padMin = date.minute.toString().padLeft(2, '0');
-    return "${date.day}/${date.month}/${date.year} at ${date.hour}:$padMin";
+    return "${date.day}/${date.month}/${date.year} • ${date.hour}:$padMin";
   }
 
-  Widget _buildTimeline() {
+  // Future<void> _makePhoneCall(String phoneNumber) async {
+  //   final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+  //   if (await canLaunchUrl(launchUri)) {
+  //     await launchUrl(launchUri);
+  //   }
+  // }
+
+  // --- UI COMPONENTS ---
+
+  Widget _buildHeader(ThemeData theme, String status, String? remark, String? description) {
+    final statusColor = _getStatusColor(status);
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: statusColor.withOpacity(0.5)),
+          ),
+          child: Text(
+            status.toUpperCase(),
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: statusColor,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (remark != null && remark.trim().isNotEmpty) _buildNoteCard(remark, Icons.warning_amber_rounded, Colors.orange),
+        if (description != null && description.trim().isNotEmpty) _buildNoteCard(description, Icons.info_outline, Colors.blue),
+      ],
+    );
+  }
+
+  Widget _buildNoteCard(String text, IconData icon, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(color: Colors.black87, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoutingCard(ThemeData theme) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Routing Details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+
+            // Modern Connected Routing UI
+            IntrinsicHeight(
+              child: Row(
+                children: [
+                  Column(
+                    children: [
+                      const Icon(Icons.radio_button_checked, color: Colors.blue, size: 20),
+                      Expanded(child: Container(width: 2, color: Colors.grey.shade300)),
+                      const Icon(Icons.location_on, color: Colors.red, size: 24),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildRouteText(theme, 'Pickup', widget.wayData['pickup_location']),
+                        const SizedBox(height: 24),
+                        _buildRouteText(theme, 'Drop-off', widget.wayData['drop_location']),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRouteText(ThemeData theme, String label, String? location) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
+        const SizedBox(height: 4),
+        Text(location ?? 'Not specified', style: theme.textTheme.bodyLarge),
+      ],
+    );
+  }
+
+  Widget _buildPersonnelCard(ThemeData theme) {
+    final customer = widget.wayData['customer'] ?? {};
+    final rider = widget.wayData['rider'] ?? {};
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          _buildPersonTile(
+            title: 'Customer',
+            name: customer['full_name'] ?? 'Unknown Customer',
+            phone: customer['phone'] ?? 'N/A',
+            icon: Icons.person_outline,
+            theme: theme,
+          ),
+          Divider(height: 1, color: Colors.grey.shade200),
+          _buildPersonTile(
+            title: 'Assigned Rider',
+            name: rider['full_name'] ?? 'Unassigned',
+            phone: rider['phone'] ?? 'N/A',
+            icon: Icons.motorcycle_outlined,
+            theme: theme,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonTile({required String title, required String name, required String phone, required IconData icon, required ThemeData theme}) {
+    return ListTile(
+      contentPadding: const EdgeInsets.all(16),
+      leading: CircleAvatar(
+        backgroundColor: Colors.grey.shade100,
+        child: Icon(icon, color: Colors.black87),
+      ),
+      title: Text(title, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Text(name, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(phone, style: theme.textTheme.bodyMedium),
+        ],
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.phone, color: Colors.green),
+        onPressed: () {
+          // _makePhoneCall(phone);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Calling functionality requires url_launcher package')));
+        },
+      ),
+    );
+  }
+
+  Widget _buildTimeline(ThemeData theme) {
     if (_isLoadingHistory) {
-      return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32.0),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
     }
 
     if (_historyList.isEmpty) {
-      return const Padding(padding: EdgeInsets.all(16.0), child: Text('No history found for this delivery.'));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Text('No history found for this delivery.', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -88,21 +283,26 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
-                width: 40,
+                width: 30,
                 child: Column(
                   children: [
                     Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 4)],
+                      ),
                       margin: const EdgeInsets.only(top: 4),
                     ),
                     if (!isLast)
                       Expanded(
                         child: Container(
                           width: 2,
-                          color: Colors.grey.shade300,
-                          margin: const EdgeInsets.only(top: 4, bottom: 4),
+                          color: Colors.grey.shade200,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
                         ),
                       ),
                   ],
@@ -116,23 +316,23 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
                     children: [
                       Text(
                         status.toUpperCase(),
-                        style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: color),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         _formatDate(history['created_at']),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
                       ),
                       if (remark != null && remark.toString().trim().isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: Colors.grey.shade50,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(color: Colors.grey.shade200),
                           ),
-                          child: Text('Note: $remark', style: const TextStyle(fontStyle: FontStyle.italic)),
+                          child: Text(remark, style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic)),
                         ),
                       ]
                     ],
@@ -148,145 +348,39 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final status = widget.wayData['status'] ?? 'pending';
-    final customerName = widget.wayData['customer']?['full_name'] ?? 'Unknown Customer';
-    final customerPhone = widget.wayData['customer']?['phone'] ?? 'N/A';
-    final riderName = widget.wayData['rider']?['full_name'] ?? 'Unassigned';
-    final riderPhone = widget.wayData['rider']?['phone'] ?? 'N/A';
     final remark = widget.wayData['remark'];
-    final description = widget.wayData['description'] ?? '';
+    final description = widget.wayData['description'];
 
     return Scaffold(
+      backgroundColor: Colors.grey.shade50, // Subtle background color to make cards pop
       appBar: AppBar(
-        title: Text('Order #${widget.wayData['id']}'),
-        // No action buttons in the AppBar!
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        title: Text('Order #${widget.wayData['id']}', style: const TextStyle(fontWeight: FontWeight.w600)),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Current Status
-            Center(
-              child: Column(
-                children: [
-                  Chip(
-                    label: Text(
-                      status.toUpperCase(),
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    backgroundColor: _getStatusColor(status),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                  if (remark != null && remark.toString().trim().isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        border: Border.all(color: Colors.amber.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.note, color: Colors.amber),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(remark, style: const TextStyle(fontStyle: FontStyle.italic))),
-                        ],
-                      ),
-                    ),
-                  ],
-                  if (description != null && description.toString().trim().isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        border: Border.all(color: Colors.amber.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.note, color: Colors.teal),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(description, style: const TextStyle(fontStyle: FontStyle.italic))),
-                        ],
-                      ),
-                    ),
-                  ]
-                ],
-              ),
-            ),
+            _buildHeader(theme, status, remark, description),
             const SizedBox(height: 24),
 
-            // Routing Info
-            const Text('Routing', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.storefront, color: Colors.blue),
-                        const SizedBox(width: 12),
-                        Expanded(child: Text('Pickup: ${widget.wayData['pickup_location']}', style: const TextStyle(fontSize: 16))),
-                      ],
-                    ),
-                    const Divider(height: 24),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.red),
-                        const SizedBox(width: 12),
-                        Expanded(child: Text('Drop: ${widget.wayData['drop_location']}', style: const TextStyle(fontSize: 16))),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildRoutingCard(theme),
             const SizedBox(height: 24),
 
-            // Personnel Info
-            const Text('Assigned Personnel', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.person)),
-                      title: const Text('Customer'),
-                      subtitle: Text(customerName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      trailing: Text(customerPhone),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.motorcycle, color: Colors.white)),
-                      title: const Text('Rider'),
-                      subtitle: Text(riderName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      trailing: Text(riderPhone),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
+            Text('People', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            _buildPersonnelCard(theme),
             const SizedBox(height: 32),
-            const Divider(),
-            const SizedBox(height: 16),
 
-            // Timeline
-            const Text('Delivery Timeline', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Timeline', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            _buildTimeline(),
-
+            _buildTimeline(theme),
           ],
         ),
       ),
