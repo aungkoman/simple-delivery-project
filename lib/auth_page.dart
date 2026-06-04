@@ -35,7 +35,7 @@ class _AuthPageState extends State<AuthPage> {
   String _formatPhoneToEmail(String phone) {
     // ကိန်းဂဏန်းများသာ ကျန်အောင် စစ်ထုတ်ခြင်း (ဥပမာ - space များ၊ + များ ပါလာလျှင် ဖယ်ရန်)
     final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    return '$cleanPhone@simpledelivery.dummy.com';
+    return '$cleanPhone@software100.com.mm';
   }
 
   Future<void> _authenticate() async {
@@ -117,6 +117,7 @@ class _AuthPageState extends State<AuthPage> {
           data: {
             'full_name': fullName,
             'display_name': displayName,
+            'phone': phone,
           },
         );
 

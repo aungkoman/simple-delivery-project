@@ -150,7 +150,9 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
   Widget build(BuildContext context) {
     final status = widget.wayData['status'] ?? 'pending';
     final customerName = widget.wayData['customer']?['full_name'] ?? 'Unknown Customer';
+    final customerPhone = widget.wayData['customer']?['phone'] ?? 'N/A';
     final riderName = widget.wayData['rider']?['full_name'] ?? 'Unassigned';
+    final riderPhone = widget.wayData['rider']?['phone'] ?? 'N/A';
     final remark = widget.wayData['remark'];
     final description = widget.wayData['description'] ?? '';
 
@@ -260,6 +262,7 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
                       leading: const CircleAvatar(child: Icon(Icons.person)),
                       title: const Text('Customer'),
                       subtitle: Text(customerName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      trailing: Text(customerPhone),
                       contentPadding: EdgeInsets.zero,
                     ),
                     const Divider(),
@@ -267,6 +270,7 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
                       leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.motorcycle, color: Colors.white)),
                       title: const Text('Rider'),
                       subtitle: Text(riderName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      trailing: Text(riderPhone),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ],
