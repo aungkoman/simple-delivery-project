@@ -13,3 +13,8 @@ supabase with aungkoman's github connected.flutter run
 ## Way တစ်ခုမှာ ဘာတွေထည့်ကြမလဲ?
 
 - [ ] way id , human readable, datetime and serial no.
+
+
+```bash
+flutter build web
+```

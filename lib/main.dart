@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:simpledelivery/auth_page.dart';
+import 'package:simpledelivery/splash_screen_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async{
@@ -39,7 +40,8 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: .fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const AuthPage(),
+      home: const SplashScreenPage(),
+
 
     );
   }

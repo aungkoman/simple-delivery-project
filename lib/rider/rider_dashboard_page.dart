@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:simpledelivery/rider/way/my_ways_page.dart';
 import 'package:simpledelivery/rider/way/way_detail_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../auth_page.dart';
 // Import your AuthPage if you want to route back to login on logout
 // import 'auth_page.dart';
 
@@ -173,7 +175,7 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
             onTap: () async {
               Navigator.pop(context);
               await supabase.auth.signOut();
-              // Route to login here if you don't have an auth state listener set up
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AuthPage()));
             },
           ),
         ],

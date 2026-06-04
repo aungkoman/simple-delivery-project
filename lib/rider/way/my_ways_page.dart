@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/way/way_detail_read_only_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MyWaysPage extends StatefulWidget {
@@ -90,6 +91,14 @@ class _MyWaysPageState extends State<MyWaysPage> {
               elevation: 2,
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => WayDetailReadOnlyPage(wayData: way),
+                    ),
+                  );
+                },
                 title: Text('Order #${way['id']} - $customerName', style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

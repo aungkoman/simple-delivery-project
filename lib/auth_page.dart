@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/customer/customer_dashboard_page.dart';
 import 'package:simpledelivery/rider/rider_dashboard_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'admin/admin_panel_page.dart';
@@ -74,6 +75,11 @@ class _AuthPageState extends State<AuthPage> {
             if (role == 'rider') {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (context) => const RiderDashboardPage()),
+              );
+            }
+            if (role == 'customer') {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const CustomerDashboardPage()),
               );
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
