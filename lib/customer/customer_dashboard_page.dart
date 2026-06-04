@@ -18,6 +18,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   List<dynamic> _activeWays = [];
   List<dynamic> _pastWays = [];
   String _customerName = 'Customer';
+  String _phone = '09****';
 
   @override
   void initState() {
@@ -33,12 +34,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       // 1. Fetch Customer Name for the Drawer
       final profileData = await supabase
           .from('profiles')
-          .select('full_name')
+          .select('full_name, email')
           .eq('id', user.id)
           .single();
 
       if (mounted) {
         _customerName = profileData['full_name'] ?? 'Customer';
+        _phone = profileData['email'] ?? 'email';
+        _phone = _phone.split("@").first;
       }
 
       // 2. UPDATED QUERY: Fetch both Rider AND Customer profile details
@@ -232,8 +235,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 const Icon(Icons.person, size: 48, color: Colors.white),
-                const SizedBox(height: 8),
+                // const SizedBox(height: 8),
                 Text(_customerName, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                Text(_phone, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.normal)),
                 const Text('Customer Account', style: TextStyle(color: Colors.white70, fontSize: 14)),
               ],
             ),
