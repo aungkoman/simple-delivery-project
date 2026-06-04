@@ -36,4 +36,29 @@ flutter build web
 
 ## ဘာတွေ သုံးလို့ ရပြီလဲ?
 
-- [ ] 
+
+### Customer
+
+- [ ] Register
+- [ ] Login
+- [ ] Dashboard
+- [ ] Way Create
+- [ ] Way Detail
+- [ ] Profile Update
+- [ ] Logout
+
+
+### Rider
+
+- [ ] Login
+- [ ] Dashboard
+- [ ] Way Listing
+- [ ] Way Detail
+- [ ] Way status update
+
+### Admin
+
+- [ ] Login
+- [ ] Dashboard
+- [ ] User Management
+- [ ] Way Management

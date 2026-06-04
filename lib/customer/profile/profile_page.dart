@@ -158,6 +158,7 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 32),
 
             // Email (Read Only)
+
             TextField(
               controller: _emailController,
               enabled: false,
@@ -165,6 +166,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 labelText: 'Email Address (Cannot be changed here)',
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.email),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  tooltip: 'Change Email',
+                  onPressed: _showChangeEmailDialog,
+                ),
                 filled: true,
                 fillColor: Colors.grey.shade100,
               ),
@@ -213,4 +219,85 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
+  Future<void> _showChangeEmailDialog() async {
+    final TextEditingController newEmailController = TextEditingController();
+    bool isSubmitting = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder( // StatefulBuilder allows updating the dialog's UI (loading state)
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Change Email Address'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'We will send a confirmation link to your new email. The change will not take effect until you click it.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: newEmailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'New Email Address',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                    final newEmail = newEmailController.text.trim();
+                    if (newEmail.isEmpty || !newEmail.contains('@')) return;
+
+                    setDialogState(() => isSubmitting = true);
+
+                    try {
+                      // Tell Supabase Auth to update the email
+                      await supabase.auth.updateUser(
+                        UserAttributes(email: newEmail),
+                      );
+
+                      if (mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Confirmation link sent! Please check your new email inbox.'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (error) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $error'), backgroundColor: Colors.red),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setDialogState(() => isSubmitting = false);
+                      }
+                    }
+                  },
+                  child: isSubmitting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Send Link'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
 }
