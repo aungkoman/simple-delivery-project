@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 // import 'package:url_launcher/url_launcher.dart'; // Recommended for tap-to-call
 
 class WayDetailReadOnlyPage extends StatefulWidget {
@@ -72,12 +73,12 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
     return "${date.day}/${date.month}/${date.year} • ${date.hour}:$padMin";
   }
 
-  // Future<void> _makePhoneCall(String phoneNumber) async {
-  //   final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
-  //   if (await canLaunchUrl(launchUri)) {
-  //     await launchUrl(launchUri);
-  //   }
-  // }
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    }
+  }
 
   // --- UI COMPONENTS ---
 
@@ -243,8 +244,9 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
       trailing: IconButton(
         icon: const Icon(Icons.phone, color: Colors.green),
         onPressed: () {
-          // _makePhoneCall(phone);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Calling functionality requires url_launcher package')));
+          print("phone is $phone");
+          _makePhoneCall(phone);
+          // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Calling functionality requires url_launcher package')));
         },
       ),
     );

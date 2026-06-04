@@ -24,3 +24,4 @@ flutter build web
 - [x] Phone No ဖြင့် account ဖောက်ရန်။ login ဝင်ရန်
 - [ ] ပါစယ် ပေးပို့ လက်ခံ အချက်အလက် ထည့်သွင်းရန်။
 - [ ] Way ID ထုတ်ရန်။
+- [ ] pickup / drop off ->  personal information, contact and lat, lng 
