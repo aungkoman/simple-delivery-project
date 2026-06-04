@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/rider/way/my_ways_page.dart';
 import 'package:simpledelivery/rider/way/way_detail_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // Import your AuthPage if you want to route back to login on logout
@@ -16,11 +17,13 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
 
   bool _isLoading = true;
   List<dynamic> _myWays = [];
+  String _riderName = 'Rider'; // To display in the drawer
 
   @override
   void initState() {
     super.initState();
     _fetchMyWays();
+    _fetchRiderProfile();
   }
 
   Future<void> _fetchMyWays() async {
@@ -107,6 +110,78 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
     return const SizedBox.shrink(); // Hide button if no action available
   }
 
+  // Optional: Fetch the rider's name to personalize the Drawer header
+  Future<void> _fetchRiderProfile() async {
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      final data = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+      if (mounted) setState(() => _riderName = data['full_name'] ?? 'Rider');
+    }
+  }
+
+
+  // 2. --- ADD THE DRAWER WIDGET ---
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              color: Colors.orange,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Icon(Icons.motorcycle, size: 48, color: Colors.white),
+                const SizedBox(height: 8),
+                Text(
+                  _riderName,
+                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const Text(
+                  'Rider Portal',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.local_shipping, color: Colors.orange),
+            title: const Text('Active Deliveries'),
+            onTap: () {
+              Navigator.pop(context); // Just close the drawer
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text('Delivery History'),
+            onTap: () {
+              Navigator.pop(context); // Close the drawer first
+              // Navigate to the history page
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyWaysPage()),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Logout', style: TextStyle(color: Colors.red)),
+            onTap: () async {
+              Navigator.pop(context);
+              await supabase.auth.signOut();
+              // Route to login here if you don't have an auth state listener set up
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,6 +199,7 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
           )
         ],
       ),
+      drawer: _buildDrawer(context), // 3. Attach the drawer to the Scaffold
       body: RefreshIndicator(
         onRefresh: _fetchMyWays,
         child: _isLoading
