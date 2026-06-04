@@ -25,3 +25,5 @@ flutter build web
 - [ ] ပါစယ် ပေးပို့ လက်ခံ အချက်အလက် ထည့်သွင်းရန်။
 - [ ] Way ID ထုတ်ရန်။
 - [ ] pickup / drop off ->  personal information, contact and lat, lng 
+- [ ] add pricing
+- [ ] created_at နဲ့ updated_at ထည့်ပြရန်
