@@ -47,107 +47,151 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading stats: $error'),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
           ),
         );
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
+  // --- UI COMPONENTS ---
+
   Widget _buildStatCard(String title, int count, IconData icon, Color color) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: color),
-            const SizedBox(height: 12),
-            Text(
-              count.toString(),
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-            ),
-          ],
-        ),
+            child: Icon(icon, size: 32, color: color),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            count.toString(),
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.black87),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }
 
-  // --- NEW DRAWER WIDGET ---
+
+
+  Widget _buildCustomDrawerHeader(BuildContext context) {
+    return Container(
+      width: double.infinity, // <--- ADD THIS LINE
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 24,
+        bottom: 24,
+        left: 20,
+        right: 20,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.indigo.shade800, Colors.indigo.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: CircleAvatar(
+              radius: 32,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.shield_outlined, size: 32, color: Colors.indigo.shade700),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Admin Control',
+            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'System Management Dashboard',
+            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(
-              color: Colors.blue,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
+          _buildCustomDrawerHeader(context),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
-                Icon(Icons.admin_panel_settings, size: 48, color: Colors.white),
-                SizedBox(height: 8),
-                Text(
-                  'Admin Control',
-                  style: TextStyle(color: Colors.white, fontSize: 24),
+                ListTile(
+                  leading: Icon(Icons.dashboard_outlined, color: Colors.indigo.shade700),
+                  title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.w600)),
+                  selected: true,
+                  selectedTileColor: Colors.indigo.shade50,
+                  onTap: () => Navigator.pop(context),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.people_outline, color: Colors.black54),
+                  title: const Text('User Management'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const UserListingPage()));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.route_outlined, color: Colors.black54),
+                  title: const Text('Delivery Management'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const WayListingPage()));
+                  },
                 ),
               ],
             ),
           ),
+          const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.dashboard),
-            title: const Text('Dashboard'),
-            onTap: () {
-              Navigator.pop(context); // Close the drawer
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.people),
-            title: const Text('User Management'),
-            onTap: () {
-              Navigator.pop(context); // Close the drawer first
-              // Navigate to the User Listing Page
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const UserListingPage()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.route),
-            title: const Text('Way Management'),
-            onTap: () {
-              Navigator.pop(context); // Close the drawer first
-              // Navigate to the User Listing Page
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const WayListingPage()),
-              );
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Logout', style: TextStyle(color: Colors.red)),
+            leading: Icon(Icons.logout, color: Colors.red.shade600),
+            title: Text('Secure Logout', style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600)),
             onTap: () async {
               Navigator.pop(context);
               await supabase.auth.signOut();
-              // Optionally route back to your Login Screen here if you aren't using an Auth listener
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AuthPage()));
+              if (mounted) {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AuthPage()));
+              }
             },
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -156,11 +200,15 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: const Text('System Overview', style: TextStyle(fontWeight: FontWeight.w600)),
+        backgroundColor: Colors.indigo.shade700,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh Stats',
             onPressed: () {
               setState(() => _isLoading = true);
@@ -169,20 +217,24 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
           )
         ],
       ),
-      drawer: _buildDrawer(context), // Attach the Drawer here
+      drawer: _buildDrawer(context),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
+          ? Center(child: CircularProgressIndicator(color: Colors.indigo.shade700))
+          : RefreshIndicator(
+        onRefresh: _fetchDashboardStats,
+        color: Colors.indigo.shade700,
         child: GridView.count(
+          padding: const EdgeInsets.all(20.0),
           crossAxisCount: 2,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
+          // Makes the cards slightly taller than they are wide
+          childAspectRatio: 0.9,
           children: [
-            _buildStatCard('Admins', _adminCount, Icons.admin_panel_settings, Colors.blue),
-            _buildStatCard('Riders', _riderCount, Icons.motorcycle, Colors.orange),
-            _buildStatCard('Customers', _customerCount, Icons.people, Colors.green),
-            _buildStatCard('Total Ways', _wayCount, Icons.local_shipping, Colors.purple),
+            _buildStatCard('Admins', _adminCount, Icons.admin_panel_settings_outlined, Colors.indigo),
+            _buildStatCard('Riders', _riderCount, Icons.motorcycle_outlined, Colors.orange.shade600),
+            _buildStatCard('Customers', _customerCount, Icons.people_outline, Colors.teal.shade600),
+            _buildStatCard('Total Deliveries', _wayCount, Icons.local_shipping_outlined, Colors.blue.shade600),
           ],
         ),
       ),

@@ -19,6 +19,14 @@ supabase with aungkoman's github connected.flutter run
 flutter build web
 ```
 
+## 2026-06-05 Data Entry
+
+- [ ] admin panel - new way entry. ( should user account created or just profile is enough ? )
+- [ ] just decide, 
+
+
+- [ ] Login Page ပြင်ရန်။
+
 ## 2026-06-04 Tasks
 
 - [x] Phone No ဖြင့် account ဖောက်ရန်။ login ဝင်ရန်
