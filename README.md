@@ -10,6 +10,12 @@ https://supabase.com/dashboard/project/nhyeutkgxyiqcxrfojcq/sql/e3647eba-39f6-45
 supabase with aungkoman's github connected.flutter run
 
 
+
+🚨 Crucial Supabase Architecture Warning
+Because you are calling supabase.auth.signUp() from the client app to automatically create the new customer account, Supabase will automatically log the Admin out and log in as the newly created custome
+
+
+
 ## Way တစ်ခုမှာ ဘာတွေထည့်ကြမလဲ?
 
 - [ ] way id , human readable, datetime and serial no.
@@ -18,14 +24,18 @@ supabase with aungkoman's github connected.flutter run
 ```bash
 flutter build web
 ```
-
+ိ
 ## 2026-06-05 Data Entry
 
 - [ ] admin panel - new way entry. ( should user account created or just profile is enough ? )
 - [ ] just decide, 
+d
+
+- [x] Login Page ပြင်ရန်။
 
 
-- [ ] Login Page ပြင်ရန်။
+### Phone No update လုပ်နိုင်ရန်။
+
 
 ## 2026-06-04 Tasks
 
