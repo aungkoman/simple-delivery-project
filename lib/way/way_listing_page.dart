@@ -204,6 +204,19 @@ class _WayCard extends StatelessWidget {
     }
   }
 
+  // --- NEW: Helper method to format Supabase timestamps safely ---
+  String _formatDate(String? isoString) {
+    if (isoString == null || isoString == 'Unknown') return 'N/A';
+    try {
+      final date = DateTime.parse(isoString).toLocal();
+      final padMin = date.minute.toString().padLeft(2, '0');
+      // Format: DD/MM/YYYY at HH:MM
+      return "${date.day}/${date.month}/${date.year} ${date.hour}:$padMin";
+    } catch (e) {
+      return 'Invalid Date';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = way['status'] ?? 'pending';
@@ -214,6 +227,9 @@ class _WayCard extends StatelessWidget {
 
     final pickup = way['pickup_location'] ?? 'Unknown';
     final drop = way['drop_location'] ?? 'Unknown';
+    // Format the timestamps before injecting them into the UI
+    final createdAt = _formatDate(way['created_at']);
+    final updatedAt = _formatDate(way['updated_at']);
 
     return Container(
       decoration: BoxDecoration(
@@ -321,6 +337,7 @@ class _WayCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(customerName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            Text(createdAt , style: TextStyle(fontSize: 11, color: Colors.grey.shade500))
                           ],
                         ),
                       ),
@@ -343,6 +360,8 @@ class _WayCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(riderName, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: riderName == 'Unassigned' ? Colors.grey : Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
+
+                            Text(updatedAt,   style: TextStyle(fontSize: 11, color: Colors.grey.shade500))
                           ],
                         ),
                       ),
