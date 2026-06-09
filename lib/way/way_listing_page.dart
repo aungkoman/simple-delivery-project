@@ -131,6 +131,7 @@ class _WayListingPageState extends State<WayListingPage> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 4, // All, Pending, Active, Completed
+      initialIndex: widget.initialIndex,
       child: Scaffold(
         backgroundColor: Colors.grey.shade50,
         appBar: AppBar(
