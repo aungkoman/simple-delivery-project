@@ -14,7 +14,6 @@ class _WayEditPageState extends State<WayEditPage> {
   final supabase = Supabase.instance.client;
   final _formKey = GlobalKey<FormState>();
 
-  // FIX 1: Initialize controllers directly to prevent Hot Reload crashes
   final _pickupController = TextEditingController();
   final _dropController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -23,8 +22,9 @@ class _WayEditPageState extends State<WayEditPage> {
   bool _isLoading = true;
   bool _isSubmitting = false;
 
-  List<dynamic> _customers = [];
-  List<dynamic> _riders = [];
+  // FIX: Enforce proper types for the Autocomplete widget
+  List<Map<String, dynamic>> _customers = [];
+  List<Map<String, dynamic>> _riders = [];
 
   String? _selectedCustomerId;
   String? _selectedRiderId;
@@ -34,7 +34,6 @@ class _WayEditPageState extends State<WayEditPage> {
   void initState() {
     super.initState();
 
-    // Assign text values here safely
     _pickupController.text = widget.wayData['pickup_location'] ?? '';
     _dropController.text = widget.wayData['drop_location'] ?? '';
     _descriptionController.text = widget.wayData['description'] ?? '';
@@ -71,24 +70,27 @@ class _WayEditPageState extends State<WayEditPage> {
         riderFilter = 'is_deleted.eq.false,id.eq.$_selectedRiderId';
       }
 
+      // 1. Fetch active customers + currently assigned customer (and their phone numbers)
       final customerResponse = await supabase
           .from('profiles')
-          .select('id, full_name')
+          .select('id, full_name, phone')
           .eq('role', 'customer')
           .or(customerFilter)
           .order('full_name');
 
+      // 2. Fetch active riders + currently assigned rider (and their phone numbers)
       final riderResponse = await supabase
           .from('profiles')
-          .select('id, full_name')
+          .select('id, full_name, phone')
           .eq('role', 'rider')
           .or(riderFilter)
           .order('full_name');
 
       if (mounted) {
         setState(() {
-          _customers = customerResponse;
-          _riders = riderResponse;
+          // Cast the responses to the exact Map type needed
+          _customers = List<Map<String, dynamic>>.from(customerResponse);
+          _riders = List<Map<String, dynamic>>.from(riderResponse);
           _isLoading = false;
         });
       }
@@ -111,7 +113,6 @@ class _WayEditPageState extends State<WayEditPage> {
 
     if (!_formKey.currentState!.validate()) return;
 
-    // Extra safety check in case the Dropdown defaulted to null
     if (_selectedCustomerId == null || !_customers.any((c) => c['id'] == _selectedCustomerId)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -203,6 +204,17 @@ class _WayEditPageState extends State<WayEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Before building, figure out the initial text to show in the Rider search box
+    String initialRiderText = '';
+    if (!_isLoading && _selectedRiderId != null) {
+      try {
+        final currentRider = _riders.firstWhere((r) => r['id'] == _selectedRiderId);
+        initialRiderText = '${currentRider['full_name']} (${currentRider['phone'] ?? 'No Phone'})';
+      } catch (e) {
+        // Silently ignore if not found
+      }
+    }
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -250,39 +262,107 @@ class _WayEditPageState extends State<WayEditPage> {
 
                       // --- Personnel ---
                       _buildSectionHeader('Assigned Personnel'),
+
+                      // Customer Dropdown (Now shows Name + Phone)
                       DropdownButtonFormField<String>(
-                        // FIX 2: Bulletproof check to ensure the value actually exists in the list
                         value: _customers.any((c) => c['id'] == _selectedCustomerId) ? _selectedCustomerId : null,
                         icon: const Icon(Icons.arrow_drop_down_rounded),
                         decoration: _buildInputDecoration('Customer (Required)', Icons.person_outline),
                         items: _customers.map<DropdownMenuItem<String>>((customer) {
+                          final phone = customer['phone'] ?? 'No Phone';
                           return DropdownMenuItem<String>(
                             value: customer['id'],
-                            child: Text(customer['full_name'], overflow: TextOverflow.ellipsis),
+                            child: Text('${customer['full_name']} ($phone)', overflow: TextOverflow.ellipsis),
                           );
                         }).toList(),
                         validator: (value) => value == null ? 'Please select a customer' : null,
                         onChanged: (value) => setState(() => _selectedCustomerId = value),
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<String?>(
-                        // FIX 2: Bulletproof check for Rider as well
-                        value: _selectedRiderId != null && _riders.any((r) => r['id'] == _selectedRiderId) ? _selectedRiderId : null,
-                        icon: const Icon(Icons.arrow_drop_down_rounded),
-                        decoration: _buildInputDecoration('Assigned Rider', Icons.motorcycle_outlined),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('Unassigned', style: TextStyle(color: Colors.grey)),
-                          ),
-                          ..._riders.map<DropdownMenuItem<String>>((rider) {
-                            return DropdownMenuItem<String>(
-                              value: rider['id'],
-                              child: Text(rider['full_name'], overflow: TextOverflow.ellipsis),
-                            );
-                          }),
-                        ],
-                        onChanged: (value) => setState(() => _selectedRiderId = value),
+
+                      // Rider Autocomplete (Searchable by Name or Phone)
+                      Autocomplete<Map<String, dynamic>>(
+                        initialValue: TextEditingValue(text: initialRiderText),
+                        displayStringForOption: (option) => '${option['full_name']} (${option['phone'] ?? 'No Phone'})',
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return _riders;
+                          }
+                          final query = textEditingValue.text.toLowerCase();
+                          return _riders.where((rider) {
+                            final name = rider['full_name']?.toString().toLowerCase() ?? '';
+                            final phone = rider['phone']?.toString().toLowerCase() ?? '';
+                            return name.contains(query) || phone.contains(query);
+                          });
+                        },
+                        onSelected: (Map<String, dynamic> selection) {
+                          setState(() => _selectedRiderId = selection['id']);
+                          FocusScope.of(context).unfocus();
+                        },
+                        fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                          return TextFormField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            onEditingComplete: onEditingComplete,
+                            decoration: _buildInputDecoration('Search Assigned Rider', Icons.motorcycle_outlined).copyWith(
+                              hintText: 'Type to change assignment',
+                              suffixIcon: _selectedRiderId != null
+                                  ? IconButton(
+                                icon: const Icon(Icons.clear, color: Colors.redAccent),
+                                onPressed: () {
+                                  controller.clear();
+                                  setState(() => _selectedRiderId = null);
+                                  focusNode.unfocus();
+                                },
+                              )
+                                  : const Icon(Icons.search, color: Colors.grey),
+                            ),
+                          );
+                        },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4.0,
+                              borderRadius: BorderRadius.circular(12),
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight: 250,
+                                  maxWidth: MediaQuery.of(context).size.width - 40,
+                                ),
+                                child: ListView.separated(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  separatorBuilder: (context, index) => const Divider(height: 1),
+                                  itemBuilder: (BuildContext context, int index) {
+                                    final option = options.elementAt(index);
+                                    return InkWell(
+                                      onTap: () => onSelected(option),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.motorcycle, color: Colors.indigo, size: 20),
+                                            const SizedBox(width: 12),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(option['full_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                if (option['phone'] != null)
+                                                  Text(option['phone'], style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 28),
 
