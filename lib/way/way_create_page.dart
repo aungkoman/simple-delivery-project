@@ -29,7 +29,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
   bool _searchPerformed = false;
   Map<String, dynamic>? _foundCustomer;
 
-  List<dynamic> _riders = [];
+  List<Map<String, dynamic>> _riders = [];
 
   String? _selectedCustomerId;
   String? _selectedRiderId;
@@ -38,7 +38,6 @@ class _WayCreatePageState extends State<WayCreatePage> {
   @override
   void initState() {
     super.initState();
-    // We only need to fetch riders up front; customers are searched dynamically
     _fetchRiders();
   }
 
@@ -57,7 +56,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
     try {
       final riderResponse = await supabase
           .from('profiles')
-          .select('id, full_name')
+          .select('id, full_name, phone') // Added phone to make search better
           .eq('role', 'rider')
           .eq('is_deleted', false)
           .order('full_name');
@@ -88,7 +87,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
       return;
     }
 
-    FocusScope.of(context).unfocus(); // Dismiss keyboard
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _isSearchingPhone = true;
@@ -98,7 +97,6 @@ class _WayCreatePageState extends State<WayCreatePage> {
     });
 
     try {
-      // Use maybeSingle() to handle exactly 0 or 1 result safely
       final response = await supabase
           .from('profiles')
           .select('id, full_name, phone')
@@ -155,10 +153,8 @@ class _WayCreatePageState extends State<WayCreatePage> {
           throw const FormatException('New customer name is required.');
         }
 
-        // Generate a unique dummy email required by Supabase Auth
         final dummyEmail = '$newPhone@deliveryapp.local';
 
-        // Invoke the secure Edge Function we built
         final response = await supabase.functions.invoke(
           'create-user',
           body: {
@@ -174,14 +170,13 @@ class _WayCreatePageState extends State<WayCreatePage> {
           throw Exception(response.data['error'] ?? 'Failed to create user account.');
         }
 
-        // Extract the newly created user's ID
         _selectedCustomerId = response.data['user']['id'];
       }
 
       // 2. CREATE THE DELIVERY WAY
       await supabase.from('ways').insert({
         'customer_id': _selectedCustomerId,
-        'rider_id': _selectedRiderId,
+        'rider_id': _selectedRiderId, // Will be null if Autocomplete was left empty
         'pickup_location': _pickupController.text.trim(),
         'drop_location': _dropController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -197,7 +192,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        Navigator.pop(context, true); // Pop back and tell the list to refresh
+        Navigator.pop(context, true);
       }
     } catch (error) {
       if (mounted) {
@@ -277,7 +272,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
 
-                      // --- Dynamic Customer Search Section ---
+                      // --- Customer Lookup ---
                       _buildSectionHeader('Customer Lookup'),
                       Row(
                         children: [
@@ -306,10 +301,9 @@ class _WayCreatePageState extends State<WayCreatePage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // --- Search Results UI ---
+                      // --- Search Results ---
                       if (_searchPerformed) ...[
                         if (_foundCustomer != null) ...[
-                          // EXISTING CUSTOMER FOUND
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -335,7 +329,6 @@ class _WayCreatePageState extends State<WayCreatePage> {
                             ),
                           ),
                         ] else ...[
-                          // NO CUSTOMER FOUND -> SHOW CREATION FORM
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -346,15 +339,15 @@ class _WayCreatePageState extends State<WayCreatePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
+                                const Row(
                                   children: [
-                                    const Icon(Icons.person_add, color: Colors.orange),
-                                    const SizedBox(width: 8),
-                                    const Text('New Customer', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                                    Icon(Icons.person_add, color: Colors.orange),
+                                    SizedBox(width: 8),
+                                    Text('New Customer', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                const Text('No existing account found. Provide a name to automatically register them.', style: TextStyle(fontSize: 12)),
+                                const Text('No existing account found. Provide a name to register them.', style: TextStyle(fontSize: 12)),
                                 const SizedBox(height: 16),
                                 TextFormField(
                                   controller: _newCustomerNameController,
@@ -370,25 +363,95 @@ class _WayCreatePageState extends State<WayCreatePage> {
                         const SizedBox(height: 28),
                       ],
 
-                      // --- Rider Assignment ---
-                      _buildSectionHeader('Assigned Personnel'),
-                      DropdownButtonFormField<String?>(
-                        value: _selectedRiderId,
-                        icon: const Icon(Icons.arrow_drop_down_rounded),
-                        decoration: _buildInputDecoration('Assigned Rider', Icons.motorcycle_outlined),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('Leave Unassigned', style: TextStyle(color: Colors.grey)),
-                          ),
-                          ..._riders.map<DropdownMenuItem<String>>((rider) {
-                            return DropdownMenuItem<String>(
-                              value: rider['id'],
-                              child: Text(rider['full_name'], overflow: TextOverflow.ellipsis),
-                            );
-                          }),
-                        ],
-                        onChanged: (value) => setState(() => _selectedRiderId = value),
+                      // --- Rider Assignment (Searchable Autocomplete) ---
+                      _buildSectionHeader('Assign Rider (Optional)'),
+                      Autocomplete<Map<String, dynamic>>(
+                        displayStringForOption: (option) => '${option['full_name']} (${option['phone'] ?? 'No Phone'})',
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          // If empty, show all active riders
+                          if (textEditingValue.text.isEmpty) {
+                            return _riders;
+                          }
+                          // Otherwise, filter by name or phone
+                          final query = textEditingValue.text.toLowerCase();
+                          return _riders.where((rider) {
+                            final name = rider['full_name']?.toString().toLowerCase() ?? '';
+                            final phone = rider['phone']?.toString().toLowerCase() ?? '';
+                            return name.contains(query) || phone.contains(query);
+                          });
+                        },
+                        onSelected: (dynamic selection) {
+                          setState(() => _selectedRiderId = selection['id']);
+                          FocusScope.of(context).unfocus();
+                        },
+                        // How the text field itself looks
+                        fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                          return TextFormField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            onEditingComplete: onEditingComplete,
+                            decoration: _buildInputDecoration('Search Rider Name or Phone', Icons.motorcycle_outlined).copyWith(
+                              hintText: 'Type to assign, or leave empty',
+                              // Add an 'X' button to clear the rider selection
+                              suffixIcon: _selectedRiderId != null
+                                  ? IconButton(
+                                icon: const Icon(Icons.clear, color: Colors.redAccent),
+                                onPressed: () {
+                                  controller.clear();
+                                  setState(() => _selectedRiderId = null);
+                                  focusNode.unfocus();
+                                },
+                              )
+                                  : const Icon(Icons.search, color: Colors.grey),
+                            ),
+                          );
+                        },
+                        // How the dropdown list looks
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4.0,
+                              borderRadius: BorderRadius.circular(12),
+                              child: ConstrainedBox(
+                                // Ensure it doesn't overflow the screen width
+                                constraints: BoxConstraints(
+                                  maxHeight: 250,
+                                  maxWidth: MediaQuery.of(context).size.width - 40,
+                                ),
+                                child: ListView.separated(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  separatorBuilder: (context, index) => const Divider(height: 1),
+                                  itemBuilder: (BuildContext context, int index) {
+                                    final option = options.elementAt(index);
+                                    return InkWell(
+                                      onTap: () => onSelected(option),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.motorcycle, color: Colors.indigo, size: 20),
+                                            const SizedBox(width: 12),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(option['full_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                if (option['phone'] != null)
+                                                  Text(option['phone'], style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 28),
 
@@ -471,9 +534,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
             Container(
               width: double.infinity,
               padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 16,
+                left: 20, right: 20, top: 16,
                 bottom: MediaQuery.of(context).padding.bottom + 16,
               ),
               decoration: BoxDecoration(
@@ -496,8 +557,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
-                    height: 24,
-                    width: 24,
+                    height: 24, width: 24,
                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                   )
                       : const Row(
@@ -505,10 +565,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
                     children: [
                       Icon(Icons.add_box_outlined, size: 20),
                       SizedBox(width: 8),
-                      Text(
-                        'Create Delivery',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                      ),
+                      Text('Create Delivery', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                     ],
                   ),
                 ),
