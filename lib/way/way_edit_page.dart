@@ -22,13 +22,23 @@ class _WayEditPageState extends State<WayEditPage> {
   bool _isLoading = true;
   bool _isSubmitting = false;
 
-  // FIX: Enforce proper types for the Autocomplete widget
   List<Map<String, dynamic>> _customers = [];
   List<Map<String, dynamic>> _riders = [];
 
   String? _selectedCustomerId;
   String? _selectedRiderId;
   late String _selectedStatus;
+
+  // Define valid statuses and clear human-readable labels
+  final List<Map<String, String>> _statusOptions = [
+    {'value': 'pending', 'label': 'Pending'},
+    {'value': 'preparing', 'label': 'Preparing'},
+    {'value': 'assigned', 'label': 'Assigned'},
+    {'value': 'picked_up', 'label': 'Picked Up'},
+    {'value': 'delivering', 'label': 'Delivering'},
+    {'value': 'dropped', 'label': 'Delivered'},
+    {'value': 'cancelled', 'label': 'Cancelled'},
+  ];
 
   @override
   void initState() {
@@ -42,9 +52,9 @@ class _WayEditPageState extends State<WayEditPage> {
     _selectedCustomerId = widget.wayData['customer_id'];
     _selectedRiderId = widget.wayData['rider_id'];
 
-    final validStatuses = ['pending', 'preparing', 'assigned', 'picked_up', 'delivering', 'dropped', 'cancelled'];
     final currentStatus = widget.wayData['status']?.toString().toLowerCase() ?? 'pending';
-    _selectedStatus = validStatuses.contains(currentStatus) ? currentStatus : 'pending';
+    final validValues = _statusOptions.map((opt) => opt['value']).toList();
+    _selectedStatus = validValues.contains(currentStatus) ? currentStatus : 'pending';
 
     _fetchUsersForDropdowns();
   }
@@ -70,7 +80,6 @@ class _WayEditPageState extends State<WayEditPage> {
         riderFilter = 'is_deleted.eq.false,id.eq.$_selectedRiderId';
       }
 
-      // 1. Fetch active customers + currently assigned customer (and their phone numbers)
       final customerResponse = await supabase
           .from('profiles')
           .select('id, full_name, phone')
@@ -78,7 +87,6 @@ class _WayEditPageState extends State<WayEditPage> {
           .or(customerFilter)
           .order('full_name');
 
-      // 2. Fetch active riders + currently assigned rider (and their phone numbers)
       final riderResponse = await supabase
           .from('profiles')
           .select('id, full_name, phone')
@@ -88,7 +96,6 @@ class _WayEditPageState extends State<WayEditPage> {
 
       if (mounted) {
         setState(() {
-          // Cast the responses to the exact Map type needed
           _customers = List<Map<String, dynamic>>.from(customerResponse);
           _riders = List<Map<String, dynamic>>.from(riderResponse);
           _isLoading = false;
@@ -166,6 +173,20 @@ class _WayEditPageState extends State<WayEditPage> {
 
   // --- UI Helpers ---
 
+  // Match colors with your card tracking palette
+  Color _getStatusThemeColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending': return Colors.orange.shade600;
+      case 'preparing': return Colors.amber.shade700;
+      case 'assigned': return Colors.teal.shade600;
+      case 'picked_up': return Colors.blue.shade600;
+      case 'delivering': return Colors.purple.shade600;
+      case 'dropped': return Colors.green.shade600;
+      case 'cancelled': return Colors.red.shade600;
+      default: return Colors.indigo.shade600;
+    }
+  }
+
   InputDecoration _buildInputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
@@ -204,14 +225,13 @@ class _WayEditPageState extends State<WayEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Before building, figure out the initial text to show in the Rider search box
     String initialRiderText = '';
     if (!_isLoading && _selectedRiderId != null) {
       try {
         final currentRider = _riders.firstWhere((r) => r['id'] == _selectedRiderId);
         initialRiderText = '${currentRider['full_name']} (${currentRider['phone'] ?? 'No Phone'})';
       } catch (e) {
-        // Silently ignore if not found
+        // Ignored
       }
     }
 
@@ -237,33 +257,55 @@ class _WayEditPageState extends State<WayEditPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // --- Operational Status ---
+
+                      // --- SMOOTH OPERATIONAL CHIPS ---
                       _buildSectionHeader('Operational Status'),
-                      DropdownButtonFormField<String>(
-                        value: _selectedStatus,
-                        icon: const Icon(Icons.arrow_drop_down_rounded),
-                        decoration: _buildInputDecoration('Current Status', Icons.timeline_outlined).copyWith(
-                          fillColor: Colors.indigo.shade50,
+                      SizedBox(
+                        height: 48,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _statusOptions.length,
+                          separatorBuilder: (context, index) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final item = _statusOptions[index];
+                            final value = item['value']!;
+                            final label = item['label']!;
+
+                            final isSelected = _selectedStatus == value;
+                            final themeColor = _getStatusThemeColor(value);
+
+                            return ChoiceChip(
+                              label: Text(label),
+                              selected: isSelected,
+                              labelStyle: TextStyle(
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                color: isSelected ? Colors.white : Colors.grey.shade700,
+                                fontSize: 13,
+                              ),
+                              selectedColor: themeColor,
+                              backgroundColor: Colors.white,
+                              side: BorderSide(
+                                color: isSelected ? Colors.transparent : Colors.grey.shade300,
+                              ),
+                              elevation: isSelected ? 2 : 0,
+                              pressElevation: 3,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              onSelected: (bool selected) {
+                                if (selected) {
+                                  setState(() => _selectedStatus = value);
+                                }
+                              },
+                            );
+                          },
                         ),
-                        items: const [
-                          DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                          DropdownMenuItem(value: 'preparing', child: Text('Preparing')),
-                          DropdownMenuItem(value: 'assigned', child: Text('Assigned')),
-                          DropdownMenuItem(value: 'picked_up', child: Text('Picked Up')),
-                          DropdownMenuItem(value: 'delivering', child: Text('Delivering')),
-                          DropdownMenuItem(value: 'dropped', child: Text('Dropped / Delivered')),
-                          DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) setState(() => _selectedStatus = value);
-                        },
                       ),
                       const SizedBox(height: 28),
 
                       // --- Personnel ---
                       _buildSectionHeader('Assigned Personnel'),
 
-                      // Customer Dropdown (Now shows Name + Phone)
                       DropdownButtonFormField<String>(
                         value: _customers.any((c) => c['id'] == _selectedCustomerId) ? _selectedCustomerId : null,
                         icon: const Icon(Icons.arrow_drop_down_rounded),
@@ -280,7 +322,6 @@ class _WayEditPageState extends State<WayEditPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Rider Autocomplete (Searchable by Name or Phone)
                       Autocomplete<Map<String, dynamic>>(
                         initialValue: TextEditingValue(text: initialRiderText),
                         displayStringForOption: (option) => '${option['full_name']} (${option['phone'] ?? 'No Phone'})',
