@@ -4,7 +4,10 @@ import 'package:simpledelivery/way/way_edit_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WayListingPage extends StatefulWidget {
-  const WayListingPage({super.key});
+
+  final int initialIndex; // 1. Add this variable
+
+  const WayListingPage({super.key, this.initialIndex = 0});
 
   @override
   State<WayListingPage> createState() => _WayListingPageState();

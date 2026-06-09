@@ -5,7 +5,9 @@ import 'package:simpledelivery/user/user_edit_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserListingPage extends StatefulWidget {
-  const UserListingPage({super.key});
+  final int initialIndex; // 1. Add this variable
+
+  const UserListingPage({super.key, this.initialIndex = 0});
 
   @override
   State<UserListingPage> createState() => _UserListingPageState();
@@ -126,6 +128,7 @@ class _UserListingPageState extends State<UserListingPage> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 4, // All, Admins, Riders, Customers
+      initialIndex: widget.initialIndex, // 3. Apply it here!
       child: Scaffold(
         backgroundColor: Colors.grey.shade50,
         appBar: AppBar(

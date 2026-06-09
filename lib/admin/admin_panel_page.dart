@@ -58,7 +58,51 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
 
   // --- UI COMPONENTS ---
 
-  Widget _buildStatCard(String title, int count, IconData icon, Color color) {
+  // 1. Add VoidCallback onTap to the parameters
+  Widget _buildStatCard(String title, int count, IconData icon, Color color, VoidCallback onTap) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent, // Ensures the ripple effect shows properly
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap, // 2. Assign the tap action
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 32, color: color),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                count.toString(),
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.black87),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard2(String title, int count, IconData icon, Color color) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -231,10 +275,25 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
           // Makes the cards slightly taller than they are wide
           childAspectRatio: 0.9,
           children: [
-            _buildStatCard('Admins', _adminCount, Icons.admin_panel_settings_outlined, Colors.indigo),
-            _buildStatCard('Riders', _riderCount, Icons.motorcycle_outlined, Colors.orange.shade600),
-            _buildStatCard('Customers', _customerCount, Icons.people_outline, Colors.teal.shade600),
-            _buildStatCard('Total Deliveries', _wayCount, Icons.local_shipping_outlined, Colors.blue.shade600),
+            // _buildStatCard('Admins', _adminCount, Icons.admin_panel_settings_outlined, Colors.indigo),
+            // _buildStatCard('Riders', _riderCount, Icons.motorcycle_outlined, Colors.orange.shade600),
+            // _buildStatCard('Customers', _customerCount, Icons.people_outline, Colors.teal.shade600),
+            // _buildStatCard('Total Deliveries', _wayCount, Icons.local_shipping_outlined, Colors.blue.shade600),
+
+            // 3. Pass the specific navigation logic and index for each card!
+            _buildStatCard('Admins', _adminCount, Icons.admin_panel_settings_outlined, Colors.indigo, () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const UserListingPage(initialIndex: 1)));
+            }),
+            _buildStatCard('Riders', _riderCount, Icons.motorcycle_outlined, Colors.orange.shade600, () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const UserListingPage(initialIndex: 2)));
+            }),
+            _buildStatCard('Customers', _customerCount, Icons.people_outline, Colors.teal.shade600, () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const UserListingPage(initialIndex: 3)));
+            }),
+            _buildStatCard('Total Deliveries', _wayCount, Icons.local_shipping_outlined, Colors.blue.shade600, () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const WayListingPage(initialIndex: 0)));
+            }),
+
           ],
         ),
       ),
