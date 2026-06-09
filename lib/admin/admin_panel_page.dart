@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/way/way_create_page.dart';
 import 'package:simpledelivery/way/way_listing_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth_page.dart';
@@ -77,7 +78,14 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
     }
   }
 
-  // --- UI COMPONENTS ---
+  // --- UI HELPERS ---
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning, Admin';
+    if (hour < 17) return 'Good Afternoon, Admin';
+    return 'Good Evening, Admin';
+  }
 
   // Standard Card for secondary metrics (Users, History)
   Widget _buildStatCard(String title, int count, IconData icon, Color color, VoidCallback onTap) {
@@ -298,21 +306,78 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text('System Overview', style: TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: Colors.indigo.shade700,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh Stats',
-            onPressed: () {
-              setState(() => _isLoading = true);
-              _fetchDashboardStats();
-            },
-          )
-        ],
+      // --- PREMIUM APPBAR DESIGN ---
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(76.0), // Extra vertical height for premium spacing
+        child: AppBar(
+          elevation: 0,
+          backgroundColor: Colors.transparent, // Transparent to show container decoration
+          iconTheme: const IconThemeData(color: Colors.white),
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.indigo.shade900, Colors.indigo.shade600],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.indigo.shade200.withOpacity(0.4),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+          ),
+          title: Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getGreeting(),
+                  style: TextStyle(fontSize: 12, color: Colors.indigo.shade100, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'System Overview',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 0.5, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0, top: 8.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: 'Add New Way',
+                  onPressed: () async{
+                    setState(() => _isLoading = true);
+                    // navigate to new way page
+                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const WayCreatePage()));
+
+                    final bool? didCreate = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const WayCreatePage()),
+                    );
+                    if (didCreate == true) {
+                      setState(() => _isLoading = true);
+                      _fetchDashboardStats();
+                    }
+
+                  },
+                ),
+              ),
+            )
+          ],
+        ),
       ),
       drawer: _buildDrawer(context),
       body: _isLoading
@@ -389,9 +454,8 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                     }),
                   ),
                   const SizedBox(width: 16),
-
                   Expanded(
-                    child: _buildStatCard('All Users', _userCount, Icons.admin_panel_settings_outlined, Colors.indigo, () {
+                    child: _buildStatCard('All Users', _userCount, Icons.people_alt_outlined, Colors.blueGrey, () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const UserListingPage(initialIndex: 0)));
                     }),
                   ),
