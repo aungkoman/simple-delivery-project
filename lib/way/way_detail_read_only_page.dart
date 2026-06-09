@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/way/way_edit_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 // import 'package:url_launcher/url_launcher.dart'; // Recommended for tap-to-call
 
 class WayDetailReadOnlyPage extends StatefulWidget {
   final Map<String, dynamic> wayData;
+  final bool fromEditPage; // 1. Add the flag
 
-  const WayDetailReadOnlyPage({super.key, required this.wayData});
+
+  const WayDetailReadOnlyPage({
+    super.key,
+    required this.wayData,
+    this.fromEditPage = false, // 2. Default to false
+  });
 
   @override
   State<WayDetailReadOnlyPage> createState() => _WayDetailReadOnlyPageState();
@@ -363,6 +370,19 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
         foregroundColor: Colors.black87,
         title: Text('Order #${widget.wayData['id']}', style: const TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
+        actions: [
+          // 3. Conditionally show the button
+          if (!widget.fromEditPage)
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => WayEditPage(wayData: widget.wayData))
+                );
+              },
+              icon: const Icon(Icons.edit), // Assuming eighteen_mp was a placeholder!
+            )
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),

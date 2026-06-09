@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/way/way_detail_read_only_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WayEditPage extends StatefulWidget {
@@ -215,6 +216,11 @@ class _WayEditPageState extends State<WayEditPage> {
           backgroundColor: Colors.indigo.shade700,
           foregroundColor: Colors.white,
           elevation: 0,
+          actions: [
+            IconButton(onPressed: (){
+              Navigator.push(context, MaterialPageRoute(builder: (context) => WayDetailReadOnlyPage(wayData: widget.wayData)));
+            }, icon: Icon(Icons.eighteen_mp))
+          ],
         ),
         body: _isLoading
             ? Center(child: CircularProgressIndicator(color: Colors.indigo.shade700))
