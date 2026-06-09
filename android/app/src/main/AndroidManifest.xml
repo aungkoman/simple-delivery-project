@@ -8,7 +8,7 @@
     </queries>
 
     <application
-        android:label="simpledelivery"
+        android:label="Simple Delivery"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

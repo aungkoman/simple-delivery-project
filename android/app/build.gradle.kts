@@ -3,6 +3,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // ADD THIS LINE FOR FIREBASE/ANALYTICS:
+    id("com.google.gms.google-services")
 }
 
 android {

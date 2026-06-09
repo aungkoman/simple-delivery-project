@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "437446574582",
+    "project_id": "simple-delivery-npt",
+    "storage_bucket": "simple-delivery-npt.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437446574582:android:68adb6346d7da6f2b607d7",
+        "android_client_info": {
+          "package_name": "mm.com.software100.simpledelivery.simpledelivery"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPJjXvWp_jvAFWryF5SJ6b66cazKh-PMU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
