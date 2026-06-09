@@ -12,15 +12,23 @@ class _WayCreatePageState extends State<WayCreatePage> {
   final supabase = Supabase.instance.client;
   final _formKey = GlobalKey<FormState>();
 
+  // --- Input Controllers ---
+  final _phoneSearchController = TextEditingController();
+  final _newCustomerNameController = TextEditingController();
   final _pickupController = TextEditingController();
   final _dropController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _remarkController = TextEditingController();
 
+  // --- State Variables ---
   bool _isLoading = true;
   bool _isSubmitting = false;
 
-  List<dynamic> _customers = [];
+  // Search State
+  bool _isSearchingPhone = false;
+  bool _searchPerformed = false;
+  Map<String, dynamic>? _foundCustomer;
+
   List<dynamic> _riders = [];
 
   String? _selectedCustomerId;
@@ -30,11 +38,14 @@ class _WayCreatePageState extends State<WayCreatePage> {
   @override
   void initState() {
     super.initState();
-    _fetchUsersForDropdowns();
+    // We only need to fetch riders up front; customers are searched dynamically
+    _fetchRiders();
   }
 
   @override
   void dispose() {
+    _phoneSearchController.dispose();
+    _newCustomerNameController.dispose();
     _pickupController.dispose();
     _dropController.dispose();
     _descriptionController.dispose();
@@ -42,15 +53,8 @@ class _WayCreatePageState extends State<WayCreatePage> {
     super.dispose();
   }
 
-  Future<void> _fetchUsersForDropdowns() async {
+  Future<void> _fetchRiders() async {
     try {
-      final customerResponse = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .eq('role', 'customer')
-          .eq('is_deleted', false)
-          .order('full_name');
-
       final riderResponse = await supabase
           .from('profiles')
           .select('id, full_name')
@@ -60,7 +64,6 @@ class _WayCreatePageState extends State<WayCreatePage> {
 
       if (mounted) {
         setState(() {
-          _customers = customerResponse;
           _riders = riderResponse;
           _isLoading = false;
         });
@@ -68,27 +71,71 @@ class _WayCreatePageState extends State<WayCreatePage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading users: $error'),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text('Error loading riders: $error'), backgroundColor: Colors.red.shade600),
         );
         setState(() => _isLoading = false);
       }
     }
   }
 
-  Future<void> _createWay() async {
+  // --- Search Customer Logic ---
+  Future<void> _searchCustomerByPhone() async {
+    final phone = _phoneSearchController.text.trim();
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a phone number to search.')),
+      );
+      return;
+    }
+
     FocusScope.of(context).unfocus(); // Dismiss keyboard
+
+    setState(() {
+      _isSearchingPhone = true;
+      _searchPerformed = false;
+      _foundCustomer = null;
+      _selectedCustomerId = null;
+    });
+
+    try {
+      // Use maybeSingle() to handle exactly 0 or 1 result safely
+      final response = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .eq('role', 'customer')
+          .eq('phone', phone)
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() {
+          if (response != null) {
+            _foundCustomer = response;
+            _selectedCustomerId = response['id'];
+          }
+          _searchPerformed = true;
+          _isSearchingPhone = false;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Search error: $error'), backgroundColor: Colors.red.shade600),
+        );
+        setState(() => _isSearchingPhone = false);
+      }
+    }
+  }
+
+  // --- Main Submission Logic ---
+  Future<void> _createWay() async {
+    FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) return;
 
-    // Explicit validation since it's a dropdown
-    if (_selectedCustomerId == null) {
+    if (!_searchPerformed) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please select a customer for this delivery.'),
+          content: const Text('Please search for a customer phone number first.'),
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
         ),
@@ -99,6 +146,39 @@ class _WayCreatePageState extends State<WayCreatePage> {
     setState(() => _isSubmitting = true);
 
     try {
+      // 1. CREATE NEW USER VIA EDGE FUNCTION IF NOT FOUND
+      if (_foundCustomer == null) {
+        final newName = _newCustomerNameController.text.trim();
+        final newPhone = _phoneSearchController.text.trim();
+
+        if (newName.isEmpty) {
+          throw const FormatException('New customer name is required.');
+        }
+
+        // Generate a unique dummy email required by Supabase Auth
+        final dummyEmail = '$newPhone@deliveryapp.local';
+
+        // Invoke the secure Edge Function we built
+        final response = await supabase.functions.invoke(
+          'create-user',
+          body: {
+            'email': dummyEmail,
+            'password': 'TempPassword123!',
+            'full_name': newName,
+            'phone': newPhone,
+            'role': 'customer',
+          },
+        );
+
+        if (response.status != 200) {
+          throw Exception(response.data['error'] ?? 'Failed to create user account.');
+        }
+
+        // Extract the newly created user's ID
+        _selectedCustomerId = response.data['user']['id'];
+      }
+
+      // 2. CREATE THE DELIVERY WAY
       await supabase.from('ways').insert({
         'customer_id': _selectedCustomerId,
         'rider_id': _selectedRiderId,
@@ -117,26 +197,24 @@ class _WayCreatePageState extends State<WayCreatePage> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        Navigator.pop(context, true); // Return true to trigger list refresh
+        Navigator.pop(context, true); // Pop back and tell the list to refresh
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating delivery: $error'),
+            content: Text('Error: $error'),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  // --- UI Helpers ---
+  // --- UI Design Helpers ---
 
   InputDecoration _buildInputDecoration(String label, IconData icon) {
     return InputDecoration(
@@ -198,22 +276,102 @@ class _WayCreatePageState extends State<WayCreatePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // --- Personnel ---
-                      _buildSectionHeader('Assigned Personnel'),
-                      DropdownButtonFormField<String>(
-                        value: _selectedCustomerId,
-                        icon: const Icon(Icons.arrow_drop_down_rounded),
-                        decoration: _buildInputDecoration('Customer (Required)', Icons.person_outline),
-                        items: _customers.map<DropdownMenuItem<String>>((customer) {
-                          return DropdownMenuItem<String>(
-                            value: customer['id'],
-                            child: Text(customer['full_name'], overflow: TextOverflow.ellipsis),
-                          );
-                        }).toList(),
-                        validator: (value) => value == null ? 'Please select a customer' : null,
-                        onChanged: (value) => setState(() => _selectedCustomerId = value),
+
+                      // --- Dynamic Customer Search Section ---
+                      _buildSectionHeader('Customer Lookup'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _phoneSearchController,
+                              keyboardType: TextInputType.phone,
+                              decoration: _buildInputDecoration('Phone Number', Icons.phone),
+                              onFieldSubmitted: (_) => _searchCustomerByPhone(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: _isSearchingPhone ? null : _searchCustomerByPhone,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.indigo.shade600,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.all(16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: _isSearchingPhone
+                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Icon(Icons.search),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
+
+                      // --- Search Results UI ---
+                      if (_searchPerformed) ...[
+                        if (_foundCustomer != null) ...[
+                          // EXISTING CUSTOMER FOUND
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              border: Border.all(color: Colors.green.shade200),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.check_circle, color: Colors.green, size: 32),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Customer Found', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                                      Text(_foundCustomer!['full_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                      Text(_foundCustomer!['phone'], style: TextStyle(color: Colors.grey.shade700)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else ...[
+                          // NO CUSTOMER FOUND -> SHOW CREATION FORM
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              border: Border.all(color: Colors.orange.shade200),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.person_add, color: Colors.orange),
+                                    const SizedBox(width: 8),
+                                    const Text('New Customer', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                const Text('No existing account found. Provide a name to automatically register them.', style: TextStyle(fontSize: 12)),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _newCustomerNameController,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: _buildInputDecoration('Full Name', Icons.person_outline).copyWith(
+                                    fillColor: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 28),
+                      ],
+
+                      // --- Rider Assignment ---
+                      _buildSectionHeader('Assigned Personnel'),
                       DropdownButtonFormField<String?>(
                         value: _selectedRiderId,
                         icon: const Icon(Icons.arrow_drop_down_rounded),
