@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simpledelivery/customer/customer_dashboard_page.dart';
 import 'package:simpledelivery/rider/rider_dashboard_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -23,6 +24,14 @@ class _AuthPageState extends State<AuthPage> {
 
   final supabase = Supabase.instance.client;
 
+
+  @override
+  void initState() {
+    super.initState();
+    // 2. Call the async method to check preferences
+    _checkFirstTimeOpen();
+  }
+
   @override
   void dispose() {
     _phoneController.dispose();
@@ -31,6 +40,27 @@ class _AuthPageState extends State<AuthPage> {
     super.dispose();
   }
 
+  // --- NEW: First-Time Open Logic ---
+  Future<void> _checkFirstTimeOpen() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // If 'hasOpenedBefore' doesn't exist, it returns null.
+    // We default it to false if it's null.
+    final bool hasOpenedBefore = prefs.getBool('hasOpenedBefore') ?? false;
+
+    if (!hasOpenedBefore) {
+      // It IS the first time. Pre-fill the fields.
+      if (mounted) {
+        setState(() {
+          _phoneController.text = '0912345';
+          _passwordController.text = 'password';
+        });
+      }
+
+      // Save the flag so this never runs again on this device
+      await prefs.setBool('hasOpenedBefore', true);
+    }
+  }
   // Convert phone to pseudo-email for Supabase
   String _formatPhoneToEmail(String phone) {
     final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');

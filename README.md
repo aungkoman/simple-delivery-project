@@ -62,8 +62,8 @@ Follow these steps to get the project running on your local machine.
 ### 3. Flutter Setup
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/yourusername/simple-delivery.git](https://github.com/yourusername/simple-delivery.git)
-   cd simple-delivery
+   git clone [https://github.com/aungkoman/simple-delivery-project.git](https://github.com/aungkoman/simple-delivery-project.git)
+   cd simple-delivery-project
 
 ```
 
@@ -74,18 +74,8 @@ flutter pub get
 ```
 
 
-3. Connect your Supabase project:
-   Open `lib/main.dart` (or your `.env` file) and replace the placeholder keys with your actual Supabase URL and Anon Key.
-```dart
-await Supabase.initialize(
-  url: 'YOUR_SUPABASE_URL',
-  anonKey: 'YOUR_SUPABASE_ANON_KEY',
-);
 
-```
-
-
-4. Run the app:
+3. Run the app:
 ```bash
 flutter run
 
