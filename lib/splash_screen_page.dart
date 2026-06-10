@@ -89,15 +89,18 @@ class _SplashScreenPageState extends State<SplashScreenPage> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // You can replace this with your app's logo
-            Icon(Icons.local_shipping, size: 80, color: Colors.blue),
-            SizedBox(height: 24),
-            CircularProgressIndicator(),
+            // Icon(Icons.local_shipping, size: 80, color: Colors.blue),
+            SizedBox(
+                width: 100,
+                child: Image.asset("assets/images/app_icon.png")),
+            const SizedBox(height: 24),
+            const CircularProgressIndicator(),
           ],
         ),
       ),
