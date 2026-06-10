@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/rider/rider_live_tracking_page.dart';
 import 'package:simpledelivery/rider/way/my_ways_page.dart';
 import 'package:simpledelivery/rider/way/way_detail_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth_page.dart';
+import '../services/rider_tracker_service.dart';
 // Import your AuthPage if you want to route back to login on logout
 // import 'auth_page.dart';
 
@@ -17,15 +19,61 @@ class RiderDashboardPage extends StatefulWidget {
 class _RiderDashboardPageState extends State<RiderDashboardPage> {
   final supabase = Supabase.instance.client;
 
+  // 1. Create an instance of our tracking service
+  final RiderTrackerService _trackerService = RiderTrackerService();
+
+  // 2. State variable to control the UI and the tracker
+  bool _isOnline = false;
+
+
   bool _isLoading = true;
   List<dynamic> _myWays = [];
   String _riderName = 'Rider'; // To display in the drawer
+
 
   @override
   void initState() {
     super.initState();
     _fetchMyWays();
     _fetchRiderProfile();
+  }
+
+  // --- THE MAGIC TOGGLE FUNCTION ---
+  Future<void> _toggleOnlineStatus(bool value) async {
+    setState(() => _isOnline = value);
+
+    if (_isOnline) {
+      // Rider went ONLINE -> Start sending GPS to Supabase
+      try {
+        await _trackerService.startBackgroundTracking();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('You are Online. Location tracking started.'),
+              backgroundColor: Colors.green.shade700,
+            ),
+          );
+        }
+      } catch (e) {
+        setState(() => _isOnline = false); // Revert if permissions failed
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to start tracking: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } else {
+      // Rider went OFFLINE -> Stop GPS
+      _trackerService.stopTracking();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('You are Offline. Tracking stopped.'),
+            backgroundColor: Colors.grey.shade800,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _fetchMyWays() async {
@@ -168,6 +216,21 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
               );
             },
           ),
+          // ---> ADD THIS NEW TILE HERE <---
+          ListTile(
+            leading: const Icon(Icons.radar, color: Colors.blue),
+            title: const Text('Live Tracking Console'),
+            subtitle: const Text('View GPS & API Sync'),
+            onTap: () {
+              Navigator.pop(context); // Close the drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RiderLiveTrackingPage()),
+              );
+            },
+          ),
+          // ---------------------------------
+
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
@@ -189,8 +252,27 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Deliveries'),
-        backgroundColor: Colors.orange, // Give Rider app a distinct color
+        // backgroundColor: Colors.orange, // Give Rider app a distinct color
+        backgroundColor: _isOnline ? Colors.green.shade700 : Colors.grey.shade800,
+        foregroundColor: Colors.white,
         actions: [
+          Row(
+            children: [
+              Text(
+                _isOnline ? 'ONLINE' : 'OFFLINE',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
+              ),
+              Switch(
+                value: _isOnline,
+                activeColor: Colors.white,
+                activeTrackColor: Colors.green.shade400,
+                inactiveThumbColor: Colors.grey.shade400,
+                inactiveTrackColor: Colors.grey.shade600,
+                onChanged: _toggleOnlineStatus, // Calls our function above
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -202,7 +284,7 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
         ],
       ),
       drawer: _buildDrawer(context), // 3. Attach the drawer to the Scaffold
-      body: RefreshIndicator(
+      body: _isOnline == false  ? _offlineIndicator() :  RefreshIndicator(
         onRefresh: _fetchMyWays,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -296,6 +378,34 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _offlineIndicator(){
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _isOnline ? Icons.motorcycle_rounded : Icons.bedtime_outlined,
+            size: 80,
+            color: _isOnline ? Colors.green.shade700 : Colors.grey.shade400,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            _isOnline
+                ? 'Looking for deliveries...\nYour location is being shared with Dispatch.'
+                : 'You are offline.\nGo online to receive deliveries.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }
