@@ -201,6 +201,80 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
     );
   }
 
+  // --- SHIMMER / SKELETON UI HELPERS ---
+
+  Widget _buildShimmerHeader() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 24, left: 4),
+      child: Container(
+        height: 20,
+        width: 140, // Match typical text width
+        decoration: BoxDecoration(
+          color: Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerCard({required double height}) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(16),
+      ),
+    );
+  }
+
+  Widget _buildShimmerDashboard() {
+    return _SkeletonPulse(
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildShimmerHeader(),
+            Row(
+              children: [
+                Expanded(child: _buildShimmerCard(height: 160)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildShimmerCard(height: 160)),
+              ],
+            ),
+            _buildShimmerHeader(),
+            Row(
+              children: [
+                Expanded(child: _buildShimmerCard(height: 140)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildShimmerCard(height: 140)),
+              ],
+            ),
+            _buildShimmerHeader(),
+            Row(
+              children: [
+                Expanded(child: _buildShimmerCard(height: 140)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildShimmerCard(height: 140)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: _buildShimmerCard(height: 140)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildShimmerCard(height: 140)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- DRAWER ---
+
   Widget _buildCustomDrawerHeader(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -306,12 +380,11 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      // --- PREMIUM APPBAR DESIGN ---
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(76.0), // Extra vertical height for premium spacing
+        preferredSize: const Size.fromHeight(76.0),
         child: AppBar(
           elevation: 0,
-          backgroundColor: Colors.transparent, // Transparent to show container decoration
+          backgroundColor: Colors.transparent,
           iconTheme: const IconThemeData(color: Colors.white),
           flexibleSpace: Container(
             decoration: BoxDecoration(
@@ -359,10 +432,6 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                   icon: const Icon(Icons.add, color: Colors.white),
                   tooltip: 'Add New Way',
                   onPressed: () async{
-                    setState(() => _isLoading = true);
-                    // navigate to new way page
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => const WayCreatePage()));
-
                     final bool? didCreate = await Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const WayCreatePage()),
@@ -371,7 +440,6 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                       setState(() => _isLoading = true);
                       _fetchDashboardStats();
                     }
-
                   },
                 ),
               ),
@@ -381,7 +449,7 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
       ),
       drawer: _buildDrawer(context),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: Colors.indigo.shade700))
+          ? _buildShimmerDashboard() // --- Replaced CircularProgressIndicator here! ---
           : RefreshIndicator(
         onRefresh: _fetchDashboardStats,
         color: Colors.indigo.shade700,
@@ -391,7 +459,6 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-
               // --- TIER 1: ACTIVE OPERATIONS (Highest Priority) ---
               _buildSectionHeader('Current Operations'),
               Row(
@@ -467,6 +534,49 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// --- DEPENDENCY-FREE SHIMMER ANIMATION ---
+// This widget creates a pulsing opacity effect mimicking a standard shimmer loader.
+class _SkeletonPulse extends StatefulWidget {
+  final Widget child;
+
+  const _SkeletonPulse({required this.child});
+
+  @override
+  __SkeletonPulseState createState() => __SkeletonPulseState();
+}
+
+class __SkeletonPulseState extends State<_SkeletonPulse> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: widget.child,
     );
   }
 }
