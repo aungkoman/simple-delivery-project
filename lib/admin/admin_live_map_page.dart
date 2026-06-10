@@ -79,7 +79,7 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
               child: const Icon(Icons.motorcycle, color: Colors.orange),
             ),
             title: Text('Rider: ${rId.substring(0, 8)}...'),
-            subtitle: Text('Lat: ${data['lat']}\nLng: ${data['lng']}'),
+            subtitle: Text('Lat: ${data['lat']}\nLng: ${data['lng']} \n ${data['updated_at']}'),
             trailing: const Icon(Icons.location_on, color: Colors.green),
             isThreeLine: true,
           );
