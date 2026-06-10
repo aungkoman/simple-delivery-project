@@ -1,8 +1,3 @@
-Here is a professional, comprehensive `README.md` file designed for your GitHub repository. It is structured to be welcoming to the public and highly educational for students who want to learn from your codebase.
-
-You can copy and paste this directly into a `README.md` file in the root of your project.
-
----
 
 ```markdown
 # 📦 Simple Delivery 
@@ -129,7 +124,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ---
 
 *Designed with ❤️ for the Flutter & Supabase community.*
-
-```
 
 ```
