@@ -15,6 +15,23 @@ supabase with aungkoman's github connected.flutter run
 Because you are calling supabase.auth.signUp() from the client app to automatically create the new customer account, Supabase will automatically log the Admin out and log in as the newly created custome
 
 
+## 2026-06-10 Demo Account
+
+
+https://appdistribution.firebase.dev/i/ec16135bd7a44fdb
+
+Simple Delivery App
+
+Admin
+Phone : 0912345
+Password : password
+
+
+Rider
+Phone : 091234567890
+Password : password
+
+
 
 ## App Icon
 

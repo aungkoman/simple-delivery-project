@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simpledelivery/admin/admin_live_map_page.dart';
 import 'package:simpledelivery/way/way_create_page.dart';
 import 'package:simpledelivery/way/way_listing_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -353,6 +354,14 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const WayListingPage()));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.route_outlined, color: Colors.black54),
+                  title: const Text('Live Map'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminLiveMapPage()));
                   },
                 ),
               ],
