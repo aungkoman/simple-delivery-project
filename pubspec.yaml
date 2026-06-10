@@ -44,7 +44,7 @@ dependencies:
   shared_preferences: ^2.5.5
   flutter_background_geolocation: ^5.2.0
   flutter_map: ^8.3.0
-  latlong2: ^0.10.1
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_launcher_icons: "^0.14.4"
