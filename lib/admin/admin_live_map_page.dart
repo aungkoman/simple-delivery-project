@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:simpledelivery/admin/rider_detail_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminLiveMapPage extends StatefulWidget {
@@ -292,6 +293,16 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
                     onPressed: () {
                       setState(() => _selectedRiderId = riderId);
                       _mapController.move(LatLng(data['lat'], data['lng']), 15.0);
+                      // 2. Push the new detail page
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RiderDetailPage(
+                            riderId: riderId,
+                            riderName: riderName,
+                          ),
+                        ),
+                      );
                     },
                   ),
                 );
