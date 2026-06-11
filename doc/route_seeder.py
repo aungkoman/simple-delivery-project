@@ -12,9 +12,12 @@ START_LOCATIONS = [
 
 # Rider UUIDs mapped from your database
 RIDERS = [
-    '3fabe3dc-6cd0-4830-b6d4-602df1a287da', # The Flash
-    'dc4858e3-72f8-4819-b5ee-77c7acd47ec7', # Spider Noir
-    '22222222-2222-2222-2222-222222222222'  # Speedy Rider 1
+#     '3fabe3dc-6cd0-4830-b6d4-602df1a287da', # The Flash
+#     'dc4858e3-72f8-4819-b5ee-77c7acd47ec7', # Spider Noir
+#     '22222222-2222-2222-2222-222222222222'  # Speedy Rider 1
+    '6780abed-ac10-4581-8df7-c96b31f6ee91',
+    'd367e4e6-1926-4212-b9ac-290e96672689'
+
 ]
 
 def add_meters_to_lat_lon(lat, lon, dy, dx):

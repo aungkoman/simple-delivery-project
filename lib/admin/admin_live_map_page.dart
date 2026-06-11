@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:simpledelivery/admin/rider_detail_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart'; // Ensure you have this imported
 
 class AdminLiveMapPage extends StatefulWidget {
   const AdminLiveMapPage({super.key});
@@ -22,8 +23,11 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
   // Cache to map rider_id -> full_name
   Map<String, String> _riderNamesCache = {};
 
-  // Holds the latest coordinates of every active rider
+  // Holds ONLY riders who have sent a location ping TODAY
   Map<String, Map<String, dynamic>> activeRiders = {};
+
+  // Holds EVERY rider, regardless of when they last pinged
+  Map<String, Map<String, dynamic>> allRidersData = {};
 
   @override
   void initState() {
@@ -33,7 +37,6 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
 
   Future<void> _initializeMapData() async {
     try {
-      // 1. Fetch riders AND their single most recent location in ONE query!
       final response = await supabase
           .from('profiles')
           .select('''
@@ -46,11 +49,9 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
             )
           ''')
           .eq('role', 'rider')
-      // Sort the joined table by newest first, and limit it to 1 result per rider
           .order('created_at', referencedTable: 'rider_locations', ascending: false)
           .limit(1, referencedTable: 'rider_locations');
 
-      // Get the start of today (Midnight) for filtering
       final now = DateTime.now();
       final startOfToday = DateTime(now.year, now.month, now.day);
 
@@ -58,28 +59,37 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
         final riderId = profile['id'];
         final fullName = profile['full_name'] ?? 'Unknown Rider';
 
-        // Cache the name for the list UI
         _riderNamesCache[riderId] = fullName;
 
-        // Check if this rider has a location history
         final locations = profile['rider_locations'] as List<dynamic>?;
 
         if (locations != null && locations.isNotEmpty) {
           final latestLoc = locations.first;
           final locDate = DateTime.parse(latestLoc['created_at']).toLocal();
 
-          // Only add them to the active map if their last location was recorded TODAY
+          final riderData = {
+            'lat': latestLoc['latitude'],
+            'lng': latestLoc['longitude'],
+            'updated_at': latestLoc['created_at'],
+          };
+
+          // Add to the "All Riders" pool
+          allRidersData[riderId] = riderData;
+
+          // If the location is from today, also add to "Active" pool
           if (locDate.isAfter(startOfToday)) {
-            activeRiders[riderId] = {
-              'lat': latestLoc['latitude'],
-              'lng': latestLoc['longitude'],
-              'updated_at': latestLoc['created_at'],
-            };
+            activeRiders[riderId] = riderData;
           }
+        } else {
+          // Rider exists but has NEVER recorded a location
+          allRidersData[riderId] = {
+            'lat': null,
+            'lng': null,
+            'updated_at': null,
+          };
         }
       }
 
-      // 2. Start listening to incoming real-time locations to update the map live
       _listenToRiderLocations();
 
       if (mounted) {
@@ -108,37 +118,45 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
 
         if (mounted && riderId != null) {
           setState(() {
-            activeRiders[riderId] = {
+            final newData = {
               'lat': newRecord['latitude'],
               'lng': newRecord['longitude'],
               'updated_at': newRecord['created_at'],
             };
 
-            // Auto-center map on the selected rider if their location updates
+            // A new insert means they are active right now!
+            activeRiders[riderId] = newData;
+            allRidersData[riderId] = newData;
+
             if (_selectedRiderId == riderId) {
               _mapController.move(
                 LatLng(newRecord['latitude'], newRecord['longitude']),
-                _mapController.camera.zoom, // Keep current zoom level
+                _mapController.camera.zoom,
               );
             }
           });
         }
       },
-    )
-        .subscribe();
+    ).subscribe();
   }
 
   String _formatTimestamp(String? isoString) {
-    if (isoString == null) return '';
+    if (isoString == null) return 'No location data';
     try {
       final date = DateTime.parse(isoString).toLocal();
-      // Format as "HH:MM AM/PM"
-      final hours = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
-      final period = date.hour >= 12 ? 'PM' : 'AM';
-      final minutes = date.minute.toString().padLeft(2, '0');
-      return "$hours:$minutes $period";
+      final now = DateTime.now();
+      final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+
+      final timeFormatted = DateFormat('hh:mm a').format(date);
+
+      if (isToday) {
+        return "Today, $timeFormatted";
+      } else {
+        // If it's an older record, show the date
+        return "${DateFormat('MMM dd, yyyy').format(date)}, $timeFormatted";
+      }
     } catch (_) {
-      return '';
+      return 'Unknown time';
     }
   }
 
@@ -151,6 +169,8 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Only draw map markers for ACTIVE riders so the map isn't cluttered
+    // with riders who are at home/offline.
     final markers = activeRiders.entries.map((entry) {
       final riderId = entry.key;
       final coords = entry.value;
@@ -206,7 +226,6 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
             child: FlutterMap(
               mapController: _mapController,
               options: MapOptions(
-                // If we have active riders, center on the first one. Otherwise default to Yangon.
                 initialCenter: activeRiders.isNotEmpty
                     ? LatLng(activeRiders.values.first['lat'], activeRiders.values.first['lng'])
                     : const LatLng(16.8409, 96.1735),
@@ -222,95 +241,131 @@ class _AdminLiveMapPageState extends State<AdminLiveMapPage> {
             ),
           ),
 
-          // --- BOTTOM PORTION: FLEET INTERACTIVE LIST ---
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4)),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Active Drivers Today',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
-                ),
-                Text(
-                  '${activeRiders.length} Online',
-                  style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
+          // --- BOTTOM PORTION: TABS FOR ACTIVE / ALL RIDERS ---
           Expanded(
-            flex: 3,
-            child: activeRiders.isEmpty
-                ? const Center(
-              child: Text(
-                'No riders have been active today.',
-                style: TextStyle(color: Colors.grey),
+            flex: 4,
+            child: DefaultTabController(
+              length: 2,
+              child: Column(
+                children: [
+                  Container(
+                    color: Colors.white,
+                    child: TabBar(
+                      labelColor: Colors.indigo.shade700,
+                      unselectedLabelColor: Colors.grey.shade600,
+                      indicatorColor: Colors.indigo.shade700,
+                      indicatorWeight: 3,
+                      tabs: [
+                        Tab(text: 'Active Today (${activeRiders.length})'),
+                        Tab(text: 'All Riders (${allRidersData.length})'),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _buildRiderList(activeRiders, emptyMessage: 'No riders are active today.'),
+                        _buildRiderList(allRidersData, emptyMessage: 'No riders registered in the system.'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            )
-                : ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: activeRiders.keys.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final riderId = activeRiders.keys.elementAt(index);
-                final data = activeRiders[riderId]!;
-
-                final riderName = _riderNamesCache[riderId] ?? 'Rider (${riderId.substring(0, 4)})';
-                final isSelected = _selectedRiderId == riderId;
-
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                  selected: isSelected,
-                  selectedTileColor: Colors.indigo.shade50,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  leading: CircleAvatar(
-                    backgroundColor: isSelected ? Colors.indigo.shade100 : Colors.orange.shade100,
-                    child: Icon(
-                      Icons.motorcycle,
-                      color: isSelected ? Colors.indigo.shade700 : Colors.orange.shade700,
-                    ),
-                  ),
-                  title: Text(
-                    riderName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  subtitle: Text(
-                    'Last update seen: ${_formatTimestamp(data['updated_at'])}',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                  ),
-                  trailing: IconButton(
-                    icon: Icon(
-                      Icons.my_location,
-                      color: isSelected ? Colors.indigo.shade700 : Colors.grey.shade400,
-                    ),
-                    onPressed: () {
-                      setState(() => _selectedRiderId = riderId);
-                      _mapController.move(LatLng(data['lat'], data['lng']), 15.0);
-                      // 2. Push the new detail page
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RiderDetailPage(
-                            riderId: riderId,
-                            riderName: riderName,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // Extracted List Builder to reuse for both Tabs
+  Widget _buildRiderList(Map<String, Map<String, dynamic>> dataSource, {required String emptyMessage}) {
+    if (dataSource.isEmpty) {
+      return Center(
+        child: Text(emptyMessage, style: const TextStyle(color: Colors.grey)),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: dataSource.keys.length,
+      separatorBuilder: (context, index) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final riderId = dataSource.keys.elementAt(index);
+        final data = dataSource[riderId]!;
+
+        final riderName = _riderNamesCache[riderId] ?? 'Rider (${riderId.substring(0, 4)})';
+        final isSelected = _selectedRiderId == riderId;
+        final hasLocation = data['lat'] != null && data['lng'] != null;
+
+        // Check if this rider is active today to color code them
+        final isActiveToday = activeRiders.containsKey(riderId);
+
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          selected: isSelected,
+          selectedTileColor: Colors.indigo.shade50,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          leading: CircleAvatar(
+            backgroundColor: isActiveToday
+                ? (isSelected ? Colors.indigo.shade100 : Colors.orange.shade100)
+                : Colors.grey.shade200,
+            child: Icon(
+              Icons.motorcycle,
+              color: isActiveToday
+                  ? (isSelected ? Colors.indigo.shade700 : Colors.orange.shade700)
+                  : Colors.grey.shade500,
+            ),
+          ),
+          title: Text(
+            riderName,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: isActiveToday ? Colors.black87 : Colors.black54,
+            ),
+          ),
+          subtitle: Text(
+            'Updated: ${_formatTimestamp(data['updated_at'])}',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Locate Button (only enabled if they have a known location)
+              IconButton(
+                icon: Icon(
+                  Icons.my_location,
+                  color: hasLocation
+                      ? (isSelected ? Colors.indigo.shade700 : Colors.grey.shade400)
+                      : Colors.grey.shade300,
+                ),
+                onPressed: hasLocation
+                    ? () {
+                  setState(() => _selectedRiderId = riderId);
+                  _mapController.move(LatLng(data['lat'], data['lng']), 15.0);
+                }
+                    : null,
+              ),
+              // History / Detail Button
+              IconButton(
+                icon: const Icon(Icons.history, color: Colors.indigo),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RiderDetailPage(
+                        riderId: riderId,
+                        riderName: riderName,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
