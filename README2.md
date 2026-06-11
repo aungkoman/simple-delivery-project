@@ -10,6 +10,8 @@ https://supabase.com/dashboard/project/nhyeutkgxyiqcxrfojcq/sql/e3647eba-39f6-45
 supabase with aungkoman's github connected.flutter run
 
 
+I/flutter ( 7854): FCM Device Token: d7lTAa0BRVujeZVJL6NePL:APA91bEP6PlMN1TmRqev0gSWgJFa7fRH7bqea-Psu6_t2slw63INetPzBlD2sEg6h0S3PHY7hrjxhgeQUR-GVOo_KenOZKj4zeVyZwZzVgHeevjhLEFDjRY
+
 
 🚨 Crucial Supabase Architecture Warning
 Because you are calling supabase.auth.signUp() from the client app to automatically create the new customer account, Supabase will automatically log the Admin out and log in as the newly created custome
