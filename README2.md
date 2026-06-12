@@ -17,6 +17,15 @@ I/flutter ( 7854): FCM Device Token: d7lTAa0BRVujeZVJL6NePL:APA91bEP6PlMN1TmRqev
 Because you are calling supabase.auth.signUp() from the client app to automatically create the new customer account, Supabase will automatically log the Admin out and log in as the newly created custome
 
 
+
+## 2026-06-12 Township and Pricing on Ways
+
+So we can automatically assign rider ,
+add deadline of way,
+
+most fields should be optional.
+
+
 ## 2026-06-10 Demo Account
 
 

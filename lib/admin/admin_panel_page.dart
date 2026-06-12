@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:simpledelivery/admin/admin_live_map_page.dart';
+import 'package:simpledelivery/misc/township_list_page.dart';
 import 'package:simpledelivery/way/way_create_page.dart';
 import 'package:simpledelivery/way/way_listing_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -362,6 +363,14 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminLiveMapPage()));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.location_searching, color: Colors.black54),
+                  title: const Text('Township'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const MyanmarTownshipPage()));
                   },
                 ),
               ],
