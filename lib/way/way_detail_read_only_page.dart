@@ -448,11 +448,22 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
           // 3. Conditionally show the button
           if (!widget.fromEditPage)
             IconButton(
-              onPressed: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => WayEditPage(wayData: widget.wayData))
+              onPressed: () async{
+
+                final bool? didUpdate = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => WayEditPage(wayData: widget.wayData)),
                 );
+
+                  if (didUpdate == true) Navigator.pop(context, true);
+
+
+
+                // // on back
+                // Navigator.push(
+                //     context,
+                //     MaterialPageRoute(builder: (context) => WayEditPage(wayData: widget.wayData))
+                // );
               },
               icon: const Icon(Icons.edit), // Assuming eighteen_mp was a placeholder!
             )
