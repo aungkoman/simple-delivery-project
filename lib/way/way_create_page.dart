@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:math';
 
 class WayCreatePage extends StatefulWidget {
   const WayCreatePage({super.key});
@@ -34,6 +38,11 @@ class _WayCreatePageState extends State<WayCreatePage> {
   String? _selectedCustomerId;
   String? _selectedRiderId;
   String _selectedStatus = 'pending';
+
+  // --- Image Upload State ---
+  final ImagePicker _picker = ImagePicker();
+  List<File> _selectedImages = [];
+
 
   @override
   void initState() {
@@ -124,6 +133,31 @@ class _WayCreatePageState extends State<WayCreatePage> {
     }
   }
 
+  // --- Image Selection Logic ---
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> pickedFiles = await _picker.pickMultiImage(
+        imageQuality: 70, // Compress slightly to save data
+      );
+
+      if (pickedFiles.isNotEmpty) {
+        setState(() {
+          _selectedImages.addAll(pickedFiles.map((xfile) => File(xfile.path)));
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick images: $e'), backgroundColor: Colors.red.shade600),
+      );
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
   // --- Main Submission Logic ---
   Future<void> _createWay() async {
     FocusScope.of(context).unfocus();
@@ -173,6 +207,35 @@ class _WayCreatePageState extends State<WayCreatePage> {
         _selectedCustomerId = response.data['user']['id'];
       }
 
+      // 2. UPLOAD IMAGES TO STORAGE (IF ANY)
+      List<String> uploadedImageUrls = [];
+      final random = Random(); // Initialize random number generator
+
+
+      for (File imageFile in _selectedImages) {
+        final fileExt = imageFile.path.split('.').last;
+
+        // Use a random number instead of UniqueKey to avoid brackets!
+        final randomString = random.nextInt(1000000).toString();
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}_$randomString.$fileExt';
+
+        // final fileName = '${DateTime.now().millisecondsSinceEpoch}_${UniqueKey().toString()}.$fileExt';
+
+        // Organize by customer_id folder
+        final filePath = '$_selectedCustomerId/$fileName';
+
+        await supabase.storage.from('way_images').upload(
+          filePath,
+          imageFile,
+          fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+        );
+
+        // Get the public URL to save in the database
+        final String publicUrl = supabase.storage.from('way_images').getPublicUrl(filePath);
+        uploadedImageUrls.add(publicUrl);
+      }
+
+
       // 2. CREATE THE DELIVERY WAY
       await supabase.from('ways').insert({
         'customer_id': _selectedCustomerId,
@@ -182,6 +245,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
         'description': _descriptionController.text.trim(),
         'remark': _remarkController.text.trim(),
         'status': _selectedStatus,
+        'images': uploadedImageUrls, // Saving the array of URLs
       });
 
       if (mounted) {
@@ -505,6 +569,74 @@ class _WayCreatePageState extends State<WayCreatePage> {
                         ),
                       ),
                       const SizedBox(height: 28),
+
+                      const SizedBox(height: 28),
+
+                      // --- Image Attachments ---
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildSectionHeader('Package Images (Optional)'),
+                          TextButton.icon(
+                            onPressed: _pickImages,
+                            icon: const Icon(Icons.add_a_photo, size: 18),
+                            label: const Text('Add Images'),
+                          )
+                        ],
+                      ),
+                      if (_selectedImages.isNotEmpty)
+                        Container(
+                          height: 100,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _selectedImages.length,
+                            itemBuilder: (context, index) {
+                              return Stack(
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(right: 12, top: 8),
+                                    width: 90,
+                                    height: 90,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.grey.shade300),
+                                      image: DecorationImage(
+                                        image: FileImage(_selectedImages[index]),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 4,
+                                    top: 0,
+                                    child: GestureDetector(
+                                      onTap: () => _removeImage(index),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.close, color: Colors.white, size: 14),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Text(
+                            'No images selected.',
+                            style: TextStyle(color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+
 
                       // --- Operational Status ---
                       _buildSectionHeader('Initial Status'),
