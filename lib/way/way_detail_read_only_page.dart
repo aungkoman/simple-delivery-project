@@ -73,6 +73,80 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
     }
   }
 
+  // --- NEW: IMAGES SECTION ---
+  Widget _buildImagesSection(ThemeData theme) {
+    // Safely extract images array
+    final List<String> imageUrls = List<String>.from(widget.wayData['images'] ?? []);
+
+    if (imageUrls.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Attached Images', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 120, // Height of the thumbnail strip
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: imageUrls.length,
+            itemBuilder: (context, index) {
+              final url = imageUrls[index];
+              return GestureDetector(
+                onTap: () => _openImageFullScreen(context, url),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  width: 120,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                    image: DecorationImage(
+                      image: NetworkImage(url),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+// Full Screen Image Viewer Modal
+  void _openImageFullScreen(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(10),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            InteractiveViewer( // Allows pinch to zoom!
+              panEnabled: true,
+              minScale: 1,
+              maxScale: 4,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(imageUrl, fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   String _formatDate(String isoString) {
     // Pro-tip: In production, use the 'intl' package (DateFormat) for better localization.
     final date = DateTime.parse(isoString).toLocal();
@@ -221,7 +295,7 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
           Divider(height: 1, color: Colors.grey.shade200),
           _buildPersonTile(
             title: 'Assigned Rider',
-            name: rider['full_name'] ?? 'Unassigned',
+            name:  rider['full_name'] ?? 'Unassigned',
             phone: rider['phone'] ?? 'N/A',
             icon: Icons.motorcycle_outlined,
             theme: theme,
@@ -394,6 +468,10 @@ class _WayDetailReadOnlyPageState extends State<WayDetailReadOnlyPage> {
 
             _buildRoutingCard(theme),
             const SizedBox(height: 24),
+
+            // --- IMAGES SECTION INJECTED HERE ---
+            _buildImagesSection(theme),
+
 
             Text('People', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),

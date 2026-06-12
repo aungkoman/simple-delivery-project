@@ -28,7 +28,8 @@ most fields should be optional.
 - [ ] Image Feature added to Way create, edit in Admin Panel
 - [ ] Image slideshow, listing in Way Detail 
 
-
+- [ ] need to store rider changes history also. way မှာ ဘာပြောင်းပြောင်း သိမ်းထားနိုင်မယ့် table တစ်ခု။ log အတွက်။ ဘယ်သူပြောင်းသွားတယ် ဆိုတာကအစ။ နှစ်ခုပြောင်းရင် နှစ်ခုပေါ့။ 
+- [ ] pickup , dropoff မှာ township , address , contact info (person + phone) ဒါတွေလိုမယ်။ အပြည့်အစုံ ထည့်ချင်ထည့်။ 
 
 ## 2026-06-10 Demo Account
 

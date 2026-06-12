@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:simpledelivery/rider/rider_live_tracking_page.dart';
 import 'package:simpledelivery/rider/way/my_ways_page.dart';
 import 'package:simpledelivery/rider/way/way_detail_page.dart';
+import 'package:simpledelivery/way/way_detail_read_only_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth_page.dart';
@@ -84,7 +85,12 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
       // Fetch only ways assigned to THIS rider, and join the customer name
       final response = await supabase
           .from('ways')
-          .select('*, customer:profiles!ways_customer_id_fkey(full_name, phone)')
+          .select('''
+            *, 
+            customer:profiles!ways_customer_id_fkey(full_name, phone),
+            rider:profiles!ways_rider_id_fkey(full_name, phone)
+          ''')
+          // .select('*, customer:profiles!ways_customer_id_fkey(full_name, phone)')
           .eq('rider_id', user.id)
       // Hide deliveries that are fully completed or cancelled to keep the UI clean
           .neq('status', 'dropped')
@@ -315,7 +321,7 @@ class _RiderDashboardPageState extends State<RiderDashboardPage> {
                   final bool? needsRefresh = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => WayDetailPage(wayData: way),
+                      builder: (context) => WayDetailReadOnlyPage(wayData: way),
                     ),
                   );
 
