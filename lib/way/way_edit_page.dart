@@ -1,4 +1,8 @@
+import 'dart:io';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:simpledelivery/way/way_detail_read_only_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -34,6 +38,12 @@ class _WayEditPageState extends State<WayEditPage> {
   String? _selectedRiderId;
   late String _selectedStatus;
 
+  // --- Image Management State ---
+  final ImagePicker _picker = ImagePicker();
+  List<String> _existingImageUrls = []; // Images already on Supabase
+  List<File> _newLocalImages = [];      // New images picked from device
+  List<String> _deletedImageUrls = [];  // Track URLs the user wants to delete
+
   final List<Map<String, String>> _statusOptions = [
     {'value': 'pending', 'label': 'Pending'},
     {'value': 'preparing', 'label': 'Preparing'},
@@ -54,7 +64,13 @@ class _WayEditPageState extends State<WayEditPage> {
     _pickupController.text = widget.wayData['pickup_location'] ?? '';
     _dropController.text = widget.wayData['drop_location'] ?? '';
     _descriptionController.text = widget.wayData['description'] ?? '';
-    _remarkController.text = widget.wayData['remark'] ?? '';
+    _remarkController.text =  widget.wayData['remark'] ?? '';
+
+    // Load existing images if they exist
+    if (widget.wayData['images'] != null) {
+      _existingImageUrls = List<String>.from(widget.wayData['images']);
+    }
+
 
     _selectedCustomerId = widget.wayData['customer_id'];
     _selectedRiderId = widget.wayData['rider_id'];
@@ -94,6 +110,35 @@ class _WayEditPageState extends State<WayEditPage> {
     _remarkController.dispose();
     super.dispose();
   }
+
+  // --- Image Pick & Remove Methods ---
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 70);
+      if (pickedFiles.isNotEmpty) {
+        setState(() {
+          _newLocalImages.addAll(pickedFiles.map((x) => File(x.path)));
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error picking images: $e')));
+    }
+  }
+
+
+  void _removeExistingImage(int index) {
+    setState(() {
+      _deletedImageUrls.add(_existingImageUrls[index]); // Mark for deletion on backend
+      _existingImageUrls.removeAt(index);               // Remove from UI
+    });
+  }
+
+  void _removeNewLocalImage(int index) {
+    setState(() {
+      _newLocalImages.removeAt(index);
+    });
+  }
+
 
   // ... _fetchUsersForDropdowns and _updateWay remain the same as previous step ...
   Future<void> _fetchUsersForDropdowns() async {
@@ -150,6 +195,46 @@ class _WayEditPageState extends State<WayEditPage> {
 
     setState(() => _isSubmitting = true);
     try {
+      final random = Random();
+      List<String> finalImageUrls = List.from(_existingImageUrls);
+
+      // 1. DELETE removed images from Supabase Storage bucket
+      if (_deletedImageUrls.isNotEmpty) {
+        for (String url in _deletedImageUrls) {
+          // Extract the storage path from the public URL.
+          // (Assuming standard public URL format: .../storage/v1/object/public/way_images/PATH)
+          final uri = Uri.parse(url);
+          final pathSegments = uri.pathSegments;
+          // Find 'way_images' and get everything after it
+          final bucketIndex = pathSegments.indexOf('way_images');
+          if (bucketIndex != -1 && bucketIndex + 1 < pathSegments.length) {
+            final storagePath = pathSegments.sublist(bucketIndex + 1).join('/');
+            await supabase.storage.from('way_images').remove([storagePath]);
+          }
+        }
+      }
+
+      // 2. UPLOAD new images to Supabase Storage
+      for (File imageFile in _newLocalImages) {
+        final fileExt = imageFile.path.split('.').last;
+        final randomString = random.nextInt(1000000).toString();
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}_$randomString.$fileExt';
+
+        final filePath = '$_selectedCustomerId/$fileName';
+
+        await supabase.storage.from('way_images').upload(
+          filePath,
+          imageFile,
+          fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+        );
+
+        final String publicUrl = supabase.storage.from('way_images').getPublicUrl(filePath);
+        finalImageUrls.add(publicUrl);
+      }
+
+
+
+
       await supabase.from('ways').update({
         'customer_id': _selectedCustomerId,
         'rider_id': _selectedRiderId,
@@ -158,6 +243,7 @@ class _WayEditPageState extends State<WayEditPage> {
         'description': _descriptionController.text.trim(),
         'remark': _remarkController.text.trim(),
         'status': _selectedStatus,
+        'images': finalImageUrls, // Save the updated array of URLs
       }).eq('id', widget.wayData['id']);
 
       if (mounted) {
@@ -194,6 +280,16 @@ class _WayEditPageState extends State<WayEditPage> {
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.indigo.shade600, width: 2)),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+      ),
     );
   }
 
@@ -329,6 +425,114 @@ class _WayEditPageState extends State<WayEditPage> {
                       const SizedBox(height: 16),
                       TextFormField(controller: _remarkController, maxLines: 2, decoration: _buildInputDecoration('Remarks', Icons.note_alt_outlined)),
                       const SizedBox(height: 100),
+
+                      // --- IMAGE EDITING SECTION ---
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildSectionHeader('Package Images'),
+                          TextButton.icon(
+                            onPressed: _pickImages,
+                            icon: const Icon(Icons.add_photo_alternate, size: 18),
+                            label: const Text('Add Images'),
+                          )
+                        ],
+                      ),
+
+                      // Check if we have ANY images (old or new) to show
+                      if (_existingImageUrls.isNotEmpty || _newLocalImages.isNotEmpty)
+                        Container(
+                          height: 110,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              // 1. Render Existing Supabase Images
+                              ..._existingImageUrls.asMap().entries.map((entry) {
+                                int idx = entry.key;
+                                String url = entry.value;
+                                return Stack(
+                                  children: [
+                                    Container(
+                                      margin: const EdgeInsets.only(right: 12, top: 8),
+                                      width: 100,
+                                      height: 100,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.indigo.shade200, width: 2),
+                                        image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 4,
+                                      top: 0,
+                                      child: GestureDetector(
+                                        onTap: () => _removeExistingImage(idx),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                          child: const Icon(Icons.delete_forever, color: Colors.white, size: 16),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }),
+
+                              // 2. Render Newly Picked Local Images
+                              ..._newLocalImages.asMap().entries.map((entry) {
+                                int idx = entry.key;
+                                File file = entry.value;
+                                return Stack(
+                                  children: [
+                                    Container(
+                                      margin: const EdgeInsets.only(right: 12, top: 8),
+                                      width: 100,
+                                      height: 100,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.green.shade400, width: 2),
+                                        image: DecorationImage(image: FileImage(file), fit: BoxFit.cover),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 4,
+                                      top: 0,
+                                      child: GestureDetector(
+                                        onTap: () => _removeNewLocalImage(idx),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                          child: const Icon(Icons.close, color: Colors.white, size: 16),
+                                        ),
+                                      ),
+                                    ),
+                                    // Visual indicator that this is unsaved
+                                    Positioned(
+                                      bottom: 4,
+                                      left: 4,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(color: Colors.green.withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
+                                        child: const Text('NEW', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                      ),
+                                    )
+                                  ],
+                                );
+                              }),
+                            ],
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 24, left: 4),
+                          child: Text('No images attached to this delivery.', style: TextStyle(color: Colors.grey.shade500, fontStyle: FontStyle.italic)),
+                        ),
+
+                      const SizedBox(height: 60),
+
+
+
                     ],
                   ),
                 ),

@@ -25,6 +25,10 @@ add deadline of way,
 
 most fields should be optional.
 
+- [ ] Image Feature added to Way create, edit in Admin Panel
+- [ ] Image slideshow, listing in Way Detail 
+
+
 
 ## 2026-06-10 Demo Account
 
