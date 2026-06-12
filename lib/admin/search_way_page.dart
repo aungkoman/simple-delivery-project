@@ -12,18 +12,17 @@ class SearchWayPage extends StatefulWidget {
 class _SearchWayPageState extends State<SearchWayPage> {
   final supabase = Supabase.instance.client;
 
-  // --- Search Controllers & State ---
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _fromController = TextEditingController();
-  final _toController = TextEditingController();
+  // --- Search & Filter State ---
+  final _universalSearchController = TextEditingController();
 
   DateTime? _selectedDate;
   String _selectedStatus = 'all';
+  String _selectedRiderId = 'all';
 
   bool _isLoading = false;
   bool _hasSearched = false;
   List<dynamic> _searchResults = [];
+  List<Map<String, dynamic>> _riders = [];
 
   // Manage the filter panel expansion
   bool _isFilterExpanded = true;
@@ -40,12 +39,36 @@ class _SearchWayPageState extends State<SearchWayPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchRidersForDropdown();
+  }
+
+  @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _fromController.dispose();
-    _toController.dispose();
+    _universalSearchController.dispose();
     super.dispose();
+  }
+
+  // --- FETCH FILTERS ---
+  Future<void> _fetchRidersForDropdown() async {
+    try {
+      final response = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('role', 'rider')
+          .eq('is_deleted', false)
+          .order('full_name');
+
+      if (mounted) {
+        setState(() {
+          _riders = List<Map<String, dynamic>>.from(response);
+        });
+      }
+    } catch (e) {
+      // Silently fail or log, dropdown will just show "All Riders"
+      debugPrint('Error loading riders: $e');
+    }
   }
 
   // --- DATE PICKER ---
@@ -69,44 +92,29 @@ class _SearchWayPageState extends State<SearchWayPage> {
     }
   }
 
-  // --- CORE SEARCH LOGIC ---
+  // --- CORE OMNI-SEARCH LOGIC ---
   Future<void> _performSearch() async {
-    FocusScope.of(context).unfocus(); // Close keyboard
+    FocusScope.of(context).unfocus();
     setState(() {
       _isLoading = true;
       _hasSearched = true;
-      _isFilterExpanded = false; // Auto-collapse filters to show results
+      _isFilterExpanded = false;
     });
 
     try {
-      final nameQ = _nameController.text.trim();
-      final phoneQ = _phoneController.text.trim();
-      final fromQ = _fromController.text.trim();
-      final toQ = _toController.text.trim();
+      // Remove commas to prevent breaking the PostgREST syntax
+      final rawQuery = _universalSearchController.text.trim().replaceAll(',', ' ');
+      List<String> matchingCustomerIds = [];
 
-      List<String> validCustomerIds = [];
+      // STEP 1: If there's text, search the Profiles table for matching Customers
+      if (rawQuery.isNotEmpty) {
+        final profileRes = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('role', 'customer')
+            .or('full_name.ilike.%$rawQuery%,phone.ilike.%$rawQuery%');
 
-      // STEP 1: If filtering by Customer Name/Phone, find matching IDs first
-      if (nameQ.isNotEmpty || phoneQ.isNotEmpty) {
-        var profileQuery = supabase.from('profiles').select('id').eq('role', 'customer');
-
-        if (nameQ.isNotEmpty) profileQuery = profileQuery.ilike('full_name', '%$nameQ%');
-        if (phoneQ.isNotEmpty) profileQuery = profileQuery.ilike('phone', '%$phoneQ%');
-
-        final profileRes = await profileQuery;
-
-        // If no customers match, return 0 results immediately
-        if (profileRes.isEmpty) {
-          if (mounted) {
-            setState(() {
-              _searchResults = [];
-              _isLoading = false;
-            });
-          }
-          return;
-        }
-
-        validCustomerIds = profileRes.map((e) => e['id'].toString()).toList();
+        matchingCustomerIds = profileRes.map((e) => e['id'].toString()).toList();
       }
 
       // STEP 2: Build the Main Deliveries (Ways) Query
@@ -114,28 +122,36 @@ class _SearchWayPageState extends State<SearchWayPage> {
           .from('ways')
           .select('*, customer:profiles!ways_customer_id_fkey(full_name, phone)');
 
-      // Apply Customer ID filters if they exist
-      if (validCustomerIds.isNotEmpty) {
-        waysQuery = waysQuery.filter('customer_id', 'in', validCustomerIds);
+      // Apply Explicit Dropdown Filters
+      if (_selectedRiderId != 'all') {
+        waysQuery = waysQuery.eq('rider_id', _selectedRiderId);
       }
 
-      // Apply Location Filters
-      if (fromQ.isNotEmpty) waysQuery = waysQuery.ilike('pickup_location', '%$fromQ%');
-      if (toQ.isNotEmpty) waysQuery = waysQuery.ilike('drop_location', '%$toQ%');
-
-      // Apply Status Filter
       if (_selectedStatus != 'all') {
         waysQuery = waysQuery.eq('status', _selectedStatus);
       }
 
-      // Apply Date Filter (Start of day to end of day)
       if (_selectedDate != null) {
         final startOfDay = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day).toUtc().toIso8601String();
         final endOfDay = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 23, 59, 59).toUtc().toIso8601String();
         waysQuery = waysQuery.gte('created_at', startOfDay).lte('created_at', endOfDay);
       }
 
-      // Execute Query (Limit to 50 for performance)
+      // Apply the Universal Text Search (The Omni-filter)
+      if (rawQuery.isNotEmpty) {
+        // Search locations and remarks
+        String orFilterString = 'pickup_location.ilike.%$rawQuery%,drop_location.ilike.%$rawQuery%,remark.ilike.%$rawQuery%';
+
+        // If the query matched any customers, inject them into the OR filter
+        if (matchingCustomerIds.isNotEmpty) {
+          String idsJoined = matchingCustomerIds.join(',');
+          orFilterString += ',customer_id.in.($idsJoined)';
+        }
+
+        waysQuery = waysQuery.or(orFilterString);
+      }
+
+      // Execute Query (Cap at 50 results to keep UI snappy)
       final response = await waysQuery.order('created_at', ascending: false).limit(50);
 
       if (mounted) {
@@ -154,12 +170,10 @@ class _SearchWayPageState extends State<SearchWayPage> {
 
   void _clearFilters() {
     setState(() {
-      _nameController.clear();
-      _phoneController.clear();
-      _fromController.clear();
-      _toController.clear();
+      _universalSearchController.clear();
       _selectedDate = null;
       _selectedStatus = 'all';
+      _selectedRiderId = 'all';
       _searchResults = [];
       _hasSearched = false;
       _isFilterExpanded = true;
@@ -167,7 +181,6 @@ class _SearchWayPageState extends State<SearchWayPage> {
   }
 
   // --- UI HELPERS ---
-
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending': return Colors.orange.shade600;
@@ -216,7 +229,7 @@ class _SearchWayPageState extends State<SearchWayPage> {
       ),
       body: Column(
         children: [
-          // --- THE FILTER PANEL ---
+          // --- THE GOOGLE-STYLE OMNIBOX & FILTER PANEL ---
           Card(
             margin: EdgeInsets.zero,
             elevation: _isFilterExpanded ? 4 : 1,
@@ -224,33 +237,69 @@ class _SearchWayPageState extends State<SearchWayPage> {
             child: ExpansionTile(
               initiallyExpanded: _isFilterExpanded,
               onExpansionChanged: (expanded) => setState(() => _isFilterExpanded = expanded),
-              title: const Text('Search Parameters', style: TextStyle(fontWeight: FontWeight.bold)),
-              leading: Icon(Icons.search, color: Colors.indigo.shade600),
+              title: const Text('Search & Filters', style: TextStyle(fontWeight: FontWeight.bold)),
+              leading: Icon(Icons.tune, color: Colors.indigo.shade600),
               backgroundColor: Colors.white,
               collapsedBackgroundColor: Colors.white,
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               children: [
+                // 1. UNIVERSAL SEARCH BAR
+                TextFormField(
+                  controller: _universalSearchController,
+                  textInputAction: TextInputAction.search,
+                  onFieldSubmitted: (_) => _performSearch(),
+                  decoration: InputDecoration(
+                    hintText: 'Search by Customer, Phone, Location, or Remarks...',
+                    prefixIcon: Icon(Icons.search, color: Colors.indigo.shade600, size: 24),
+                    filled: true,
+                    fillColor: Colors.indigo.shade50,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-                SizedBox(height: 08.0,),
+                // 2. SPECIFIC DROPDOWN FILTERS
                 Row(
                   children: [
-                    Expanded(child: TextFormField(controller: _nameController, decoration: _buildInputDeco('Customer Name', Icons.person_outline), textInputAction: TextInputAction.next)),
+                    // Rider Dropdown
+                    Expanded(
+                      flex: 1,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedRiderId,
+                        icon: const Icon(Icons.arrow_drop_down_rounded),
+                        isExpanded: true,
+                        decoration: _buildInputDeco('Assigned Rider', Icons.motorcycle),
+                        items: [
+                          const DropdownMenuItem(value: 'all', child: Text('All Riders')),
+                          ..._riders.map((r) => DropdownMenuItem(value: r['id'].toString(), child: Text(r['full_name'], overflow: TextOverflow.ellipsis))),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedRiderId = val);
+                        },
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: TextFormField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: _buildInputDeco('Phone No.', Icons.phone_android), textInputAction: TextInputAction.next)),
+                    // Status Dropdown
+                    Expanded(
+                      flex: 1,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedStatus,
+                        icon: const Icon(Icons.arrow_drop_down_rounded),
+                        decoration: _buildInputDeco('Status', Icons.timeline_outlined),
+                        items: _statusOptions.map((opt) => DropdownMenuItem(value: opt['value'], child: Text(opt['label']!))).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedStatus = val);
+                        },
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
+
+                // 3. DATE FILTER & SEARCH BUTTON
                 Row(
                   children: [
-                    Expanded(child: TextFormField(controller: _fromController, decoration: _buildInputDeco('Pickup Location', Icons.radio_button_checked), textInputAction: TextInputAction.next)),
-                    const SizedBox(width: 12),
-                    Expanded(child: TextFormField(controller: _toController, decoration: _buildInputDeco('Drop-off Location', Icons.location_on), textInputAction: TextInputAction.done)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    // Date Picker
                     Expanded(
                       flex: 1,
                       child: InkWell(
@@ -285,35 +334,21 @@ class _SearchWayPageState extends State<SearchWayPage> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Status Dropdown
                     Expanded(
                       flex: 1,
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedStatus,
-                        icon: const Icon(Icons.arrow_drop_down_rounded),
-                        decoration: _buildInputDeco('Status', Icons.timeline_outlined),
-                        items: _statusOptions.map((opt) => DropdownMenuItem(value: opt['value'], child: Text(opt['label']!))).toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedStatus = val);
-                        },
+                      child: ElevatedButton.icon(
+                        onPressed: _performSearch,
+                        icon: const Icon(Icons.search),
+                        label: const Text('Search', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _performSearch,
-                    icon: const Icon(Icons.search),
-                    label: const Text('Search Deliveries', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo.shade700,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -328,9 +363,9 @@ class _SearchWayPageState extends State<SearchWayPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.search_rounded, size: 80, color: Colors.grey.shade300),
+                  Icon(Icons.manage_search_rounded, size: 80, color: Colors.grey.shade300),
                   const SizedBox(height: 16),
-                  Text('Enter criteria above to search deliveries.', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+                  Text('Enter search criteria or select filters above.', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
                 ],
               ),
             )
