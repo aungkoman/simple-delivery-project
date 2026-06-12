@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:simpledelivery/admin/admin_live_map_page.dart';
+import 'package:simpledelivery/admin/search_way_page.dart';
 import 'package:simpledelivery/misc/township_list_page.dart';
 import 'package:simpledelivery/way/way_create_page.dart';
 import 'package:simpledelivery/way/way_listing_page.dart';
@@ -447,12 +448,12 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Add New Way',
+                  icon: const Icon(Icons.search, color: Colors.white),
+                  tooltip: 'Search Way',
                   onPressed: () async{
                     final bool? didCreate = await Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const WayCreatePage()),
+                      MaterialPageRoute(builder: (context) => const SearchWayPage()),
                     );
                     if (didCreate == true) {
                       setState(() => _isLoading = true);
@@ -466,6 +467,24 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
         ),
       ),
       drawer: _buildDrawer(context),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.indigo.shade700,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        onPressed: () async {
+          final bool? didCreate = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const WayCreatePage()),
+          );
+          if (didCreate == true) {
+            setState(() => _isLoading = true);
+            _fetchDashboardStats();
+          }
+        },
+        icon: const Icon(Icons.add_box_outlined),
+        label: const Text('New Delivery', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+      ),
+
       body: _isLoading
           ? _buildShimmerDashboard() // --- Replaced CircularProgressIndicator here! ---
           : RefreshIndicator(
