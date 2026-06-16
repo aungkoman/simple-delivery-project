@@ -24,6 +24,14 @@ class _WayCreatePageState extends State<WayCreatePage> {
   final _descriptionController = TextEditingController();
   final _remarkController = TextEditingController();
 
+  // First, it helps to define your options clearly, perhaps as a final variable in your State class:
+  final Map<String, String> _statusOptions = {
+    'pending': 'စောင့်ဆိုင်းဆဲ',
+    'preparing': 'ပြင်ဆင်နေဆဲ',
+    'assigned': 'Rider တာဝန်ပေးပြီး',
+  };
+
+
   // --- State Variables ---
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -251,7 +259,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Delivery created successfully!'),
+            content: const Text('အော်ဒါအသစ် အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ!'),
             backgroundColor: Colors.green.shade700,
             behavior: SnackBarBehavior.floating,
           ),
@@ -318,7 +326,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
       child: Scaffold(
         backgroundColor: Colors.grey.shade50,
         appBar: AppBar(
-          title: const Text('Create New Delivery', style: TextStyle(fontWeight: FontWeight.w600)),
+          title: const Text('အော်ဒါအသစ်', style: TextStyle(fontWeight: FontWeight.w600)),
           backgroundColor: Colors.indigo.shade700,
           foregroundColor: Colors.white,
           elevation: 0,
@@ -337,14 +345,14 @@ class _WayCreatePageState extends State<WayCreatePage> {
                     children: [
 
                       // --- Customer Lookup ---
-                      _buildSectionHeader('Customer Lookup'),
+                      _buildSectionHeader('ဖောက်သည် အချက်အလက်'),
                       Row(
                         children: [
                           Expanded(
                             child: TextFormField(
                               controller: _phoneSearchController,
                               keyboardType: TextInputType.phone,
-                              decoration: _buildInputDecoration('Phone Number', Icons.phone),
+                              decoration: _buildInputDecoration('ဖုန်းနံပါတ်', Icons.phone),
                               onFieldSubmitted: (_) => _searchCustomerByPhone(),
                             ),
                           ),
@@ -407,16 +415,16 @@ class _WayCreatePageState extends State<WayCreatePage> {
                                   children: [
                                     Icon(Icons.person_add, color: Colors.orange),
                                     SizedBox(width: 8),
-                                    Text('New Customer', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                                    Text('ဖောက်သည်အသစ်', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                const Text('No existing account found. Provide a name to register them.', style: TextStyle(fontSize: 12)),
+                                const Text('စနစ်ထည့်တွင် စာရင်းသွင်းထားရန် အမည်မှတ်ထားပါ', style: TextStyle(fontSize: 12)),
                                 const SizedBox(height: 16),
                                 TextFormField(
                                   controller: _newCustomerNameController,
                                   textInputAction: TextInputAction.next,
-                                  decoration: _buildInputDecoration('Full Name', Icons.person_outline).copyWith(
+                                  decoration: _buildInputDecoration('အမည် အပြည့်အစုံ', Icons.person_outline).copyWith(
                                     fillColor: Colors.white,
                                   ),
                                 ),
@@ -428,7 +436,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
                       ],
 
                       // --- Rider Assignment (Searchable Autocomplete) ---
-                      _buildSectionHeader('Assign Rider (Optional)'),
+                      _buildSectionHeader('ပို့ဆောင်သူ'),
                       Autocomplete<Map<String, dynamic>>(
                         displayStringForOption: (option) => '${option['full_name']} (${option['phone'] ?? 'No Phone'})',
                         optionsBuilder: (TextEditingValue textEditingValue) {
@@ -454,7 +462,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
                             controller: controller,
                             focusNode: focusNode,
                             onEditingComplete: onEditingComplete,
-                            decoration: _buildInputDecoration('Search Rider Name or Phone', Icons.motorcycle_outlined).copyWith(
+                            decoration: _buildInputDecoration('အမည် / ဖုန်း ဖြင့် ရှာပါ', Icons.motorcycle_outlined).copyWith(
                               hintText: 'Type to assign, or leave empty',
                               // Add an 'X' button to clear the rider selection
                               suffixIcon: _selectedRiderId != null
@@ -520,11 +528,12 @@ class _WayCreatePageState extends State<WayCreatePage> {
                       const SizedBox(height: 28),
 
                       // --- Delivery Details ---
-                      _buildSectionHeader('Delivery Details & Routing'),
+                      _buildSectionHeader('ပါစယ်အချက်အလက်နှင့် လမ်းကြောင်း'),
                       TextFormField(
+                        maxLines: 3,
                         controller: _descriptionController,
                         textInputAction: TextInputAction.next,
-                        decoration: _buildInputDecoration('Package Description', Icons.inventory_2_outlined),
+                        decoration: _buildInputDecoration('ပစ္စည်းအချက်အလက် ထည့်သွင်းရန်', Icons.inventory_2_outlined),
                         validator: (value) => (value == null || value.trim().isEmpty) ? 'Please describe the package' : null,
                       ),
                       const SizedBox(height: 16),
@@ -538,19 +547,21 @@ class _WayCreatePageState extends State<WayCreatePage> {
                         child: Column(
                           children: [
                             TextFormField(
+                              maxLines: 3,
                               controller: _pickupController,
                               textInputAction: TextInputAction.next,
-                              decoration: _buildInputDecoration('Pickup Location', Icons.radio_button_checked).copyWith(
+                              decoration: _buildInputDecoration('ပစ္စည်းယူမည့်နေရာ', Icons.radio_button_checked).copyWith(
                                 prefixIcon: Icon(Icons.radio_button_checked, color: Colors.blue.shade500, size: 22),
                                 fillColor: Colors.grey.shade50,
                               ),
-                              validator: (value) => (value == null || value.trim().isEmpty) ? 'Pickup location is required' : null,
+                              // validator: (value) => (value == null || value.trim().isEmpty) ? 'Pickup location is required' : null,
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
+                              maxLines: 3,
                               controller: _dropController,
                               textInputAction: TextInputAction.next,
-                              decoration: _buildInputDecoration('Drop-off Location', Icons.location_on).copyWith(
+                              decoration: _buildInputDecoration('ပစ္စည်းပို့မည့်နေရာ', Icons.location_on).copyWith(
                                 prefixIcon: Icon(Icons.location_on, color: Colors.red.shade500, size: 22),
                                 fillColor: Colors.grey.shade50,
                               ),
@@ -564,8 +575,8 @@ class _WayCreatePageState extends State<WayCreatePage> {
                         controller: _remarkController,
                         maxLines: 3,
                         textInputAction: TextInputAction.done,
-                        decoration: _buildInputDecoration('Delivery Instructions / Remarks', Icons.note_alt_outlined).copyWith(
-                          alignLabelWithHint: true,
+                        decoration: _buildInputDecoration('မှတ်ချက် / ညွှန်ကြားချက်များ', Icons.note_alt_outlined).copyWith(
+                          // alignLabelWithHint: true,
                         ),
                       ),
                       const SizedBox(height: 28),
@@ -576,11 +587,11 @@ class _WayCreatePageState extends State<WayCreatePage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _buildSectionHeader('Package Images (Optional)'),
+                          _buildSectionHeader('ပါစယ်ပုံများ'),
                           TextButton.icon(
                             onPressed: _pickImages,
                             icon: const Icon(Icons.add_a_photo, size: 18),
-                            label: const Text('Add Images'),
+                            label: const Text('ပုံထည့်ရန်'),
                           )
                         ],
                       ),
@@ -631,7 +642,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16),
                           child: Text(
-                            'No images selected.',
+                            'ဓာတ်ပုံရွေးချယ်ထားခြင်းမရှိပါ',
                             style: TextStyle(color: Colors.grey.shade500, fontStyle: FontStyle.italic),
                           ),
                         ),
@@ -639,22 +650,57 @@ class _WayCreatePageState extends State<WayCreatePage> {
 
 
                       // --- Operational Status ---
-                      _buildSectionHeader('Initial Status'),
-                      DropdownButtonFormField<String>(
-                        value: _selectedStatus,
-                        icon: const Icon(Icons.arrow_drop_down_rounded),
-                        decoration: _buildInputDecoration('Status', Icons.timeline_outlined).copyWith(
-                          fillColor: Colors.indigo.shade50,
-                        ),
-                        items: const [
-                          DropdownMenuItem(value: 'pending', child: Text('Pending (Default)')),
-                          DropdownMenuItem(value: 'preparing', child: Text('Preparing')),
-                          DropdownMenuItem(value: 'assigned', child: Text('Assigned')),
+                      _buildSectionHeader('အော်ဒါအခြေအနေ'),
+
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+
+                          // 2. The Horizontally Scrollable Chips
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            // Gives a premium, bouncy feel on both iOS and Android
+                            physics: const BouncingScrollPhysics(),
+                            // Optional: Add horizontal padding here if this widget sits flush to the screen edges
+                            // padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Row(
+                              children: _statusOptions.entries.map((entry) {
+                                final bool isSelected = _selectedStatus == entry.key;
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 12.0), // Gap between chips
+                                  child: ChoiceChip(
+                                    label: Text(entry.value),
+                                    selected: isSelected,
+                                    onSelected: (bool selected) {
+                                      if (selected && _selectedStatus != entry.key) {
+                                        setState(() => _selectedStatus = entry.key);
+                                      }
+                                    },
+                                    showCheckmark: false,
+                                    selectedColor: Colors.indigo.shade100,
+                                    backgroundColor: Colors.grey.shade100,
+                                    side: BorderSide(
+                                      color: isSelected ? Colors.indigo.shade400 : Colors.transparent,
+                                      width: 1.5,
+                                    ),
+                                    labelStyle: TextStyle(
+                                      color: isSelected ? Colors.indigo.shade900 : Colors.grey.shade700,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
                         ],
-                        onChanged: (value) {
-                          if (value != null) setState(() => _selectedStatus = value);
-                        },
                       ),
+
+
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -697,7 +743,7 @@ class _WayCreatePageState extends State<WayCreatePage> {
                     children: [
                       Icon(Icons.add_box_outlined, size: 20),
                       SizedBox(width: 8),
-                      Text('Create Delivery', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      Text('အော်ဒါစာရင်းသွင်းမည်', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                     ],
                   ),
                 ),
