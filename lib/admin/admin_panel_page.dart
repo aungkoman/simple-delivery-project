@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:simpledelivery/admin/admin_live_map_page.dart';
 import 'package:simpledelivery/admin/search_way_page.dart';
 import 'package:simpledelivery/misc/township_list_page.dart';
+import 'package:simpledelivery/utils/number_converter.dart';
 import 'package:simpledelivery/way/way_create_page.dart';
 import 'package:simpledelivery/way/way_listing_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -85,9 +86,9 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning, Admin';
-    if (hour < 17) return 'Good Afternoon, Admin';
-    return 'Good Evening, Admin';
+    if (hour < 12) return 'မင်္ဂလာ မနက်ခင်းပါ, Admin';
+    if (hour < 17) return 'မင်္ဂလာ နေ့လည်ခင်းပါ, Admin';
+    return 'မင်္ဂလာ ညနေခင်းပါ, Admin';
   }
 
   // Standard Card for secondary metrics (Users, History)
@@ -121,7 +122,7 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  count.toString(),
+                  NumberConverter.toMyanmar(count),
                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.black87),
                 ),
                 const SizedBox(height: 4),
@@ -139,7 +140,7 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
   }
 
   // Highlight Card for Primary Metrics (Pending & Active Deliveries)
-  Widget _buildHighlightCard(String title, int count, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildHighlightCard(String title, int count, IconData icon, Color color, String badage, VoidCallback onTap) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -172,16 +173,16 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text('Action Required', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      child: Text(badage, style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                     )
                   ],
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  count.toString(),
+                  NumberConverter.toMyanmar(count),
                   style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   title,
                   style: const TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 0.5),
@@ -431,9 +432,9 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                   _getGreeting(),
                   style: TextStyle(fontSize: 12, color: Colors.indigo.shade100, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 const Text(
-                  'System Overview',
+                  'စနစ်သုံးသပ်ချက်',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 0.5, color: Colors.white),
                 ),
               ],
@@ -482,7 +483,7 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
           }
         },
         icon: const Icon(Icons.add_box_outlined),
-        label: const Text('New Delivery', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        label: const Text('အော်ဒါအသစ်', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
       ),
 
       body: _isLoading
@@ -497,17 +498,17 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // --- TIER 1: ACTIVE OPERATIONS (Highest Priority) ---
-              _buildSectionHeader('Current Operations'),
+              _buildSectionHeader('လက်ရှိ ပို့ဆောင်ရေး အခြေအနေ'),
               Row(
                 children: [
                   Expanded(
-                    child: _buildHighlightCard('Pending\nOrders', _pendingCount, Icons.hourglass_empty_rounded, Colors.orange.shade600, () {
+                    child: _buildHighlightCard('လက်ခံထားသော\nအော်ဒါများ',_pendingCount,  Icons.hourglass_empty_rounded, Colors.orange.shade600,'ပို့ရန်ကျန်' , () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const WayListingPage(initialIndex: 1)));
                     }),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildHighlightCard('Active\nIn Transit', _activeCount, Icons.motorcycle_rounded, Colors.purple.shade600, () {
+                    child: _buildHighlightCard('ပို့ဆောင်နေသော\nအော်ဒါများ', _activeCount, Icons.motorcycle_rounded, Colors.purple.shade600,'ပို့ဆောင်နေ',  () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const WayListingPage(initialIndex: 2)));
                     }),
                   ),
@@ -515,17 +516,17 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
               ),
 
               // --- TIER 2: DELIVERY HISTORY (Secondary Priority) ---
-              _buildSectionHeader('Delivery Records'),
+              _buildSectionHeader('ဆောင်ရွက်ပြီးစီးမှု အခြေအနေ'),
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard('Completed', _completedCount, Icons.check_circle_outline, Colors.green.shade600, () {
+                    child: _buildStatCard('ပြီးစီးမှု', _completedCount, Icons.check_circle_outline, Colors.green.shade600, () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const WayListingPage(initialIndex: 3)));
                     }),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildStatCard('Total Deliveries', _wayCount, Icons.local_shipping_outlined, Colors.blue.shade600, () {
+                    child: _buildStatCard('လက်ခံထားရှိမှု', _wayCount, Icons.local_shipping_outlined, Colors.blue.shade600, () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const WayListingPage(initialIndex: 0)));
                     }),
                   ),
@@ -533,17 +534,17 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
               ),
 
               // --- TIER 3: USER MANAGEMENT (Lowest Priority) ---
-              _buildSectionHeader('Personnel & Users'),
+              _buildSectionHeader('ဖောက်သည် နှင့် ဝန်ထမ်းများ'),
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard('Customers', _customerCount, Icons.people_outline, Colors.teal.shade600, () {
+                    child: _buildStatCard('ဖောက်သည်များ', _customerCount, Icons.people_outline, Colors.teal.shade600, () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const UserListingPage(initialIndex: 3)));
                     }),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildStatCard('Riders', _riderCount, Icons.motorcycle_outlined, Colors.orange.shade600, () {
+                    child: _buildStatCard('ပို့ဆောင်သူများ', _riderCount, Icons.motorcycle_outlined, Colors.orange.shade600, () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const UserListingPage(initialIndex: 2)));
                     }),
                   ),
@@ -559,7 +560,7 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildStatCard('All Users', _userCount, Icons.people_alt_outlined, Colors.blueGrey, () {
+                    child: _buildStatCard('အကောင့်များ', _userCount, Icons.people_alt_outlined, Colors.blueGrey, () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const UserListingPage(initialIndex: 0)));
                     }),
                   ),
