@@ -25,6 +25,32 @@ Because you are calling supabase.auth.signUp() from the client app to automatica
 - [ ] from / to Township 
 
 
+current report
+
+- [x] Localization is in progress.
+
+let's add 
+
+from township
+to township , add township code and name (two column added) to skip left join
+
+
+payment type ->  prepaid (default) | cod
+who_paid  => sender (default) | receiver 
+pay_status => prepaid (default) |pending | collected | remitted_to_office | lost
+rider_fee_status => pending (default) | settled | refund
+
+delivery_charges -> default 0
+rider_fee -> default 0
+parcel_value -> default 0
+amount_to_collect -> default 0
+
+
+တစ်ခုရှိတာက COD တွေဆိုရင် ပိုက်ဆံကောက်ပြီး Sender ကို ပြန်ပေးရတာမျိုး။ 
+ဒါမှမဟုတ် Sender ကို ကြိုပေးထားရတာမျိုးလည်း ရှိမယ်။
+ဒီအတွက်လည်း handle လုပ်နိုင်အောင် ပြင်ထားရမယ်။
+
+
 
 ## 2026-06-12 Township and Pricing on Ways
 
