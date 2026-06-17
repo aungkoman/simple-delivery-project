@@ -16,6 +16,18 @@ I/flutter ( 7854): FCM Device Token: d7lTAa0BRVujeZVJL6NePL:APA91bEP6PlMN1TmRqev
 🚨 Crucial Supabase Architecture Warning
 Because you are calling supabase.auth.signUp() from the client app to automatically create the new customer account, Supabase will automatically log the Admin out and log in as the newly created custome
 
+
+## 2026-06-17 enum 
+
+column ထဲမှာ ထည့်ထားတယ်။
+
+
+ကောက်ရမယ့် ငွေတွေအကြောင်း ထည့်ပြီးပြီ
+
+ကောက်ပြီးပြီလား၊ ငွေရှင်းပြီးပြီလား ဆိုတာ ထည့်ရမယ်။
+
+
+
 ## 2026-06-16
 
 

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:math';
@@ -23,6 +24,12 @@ class _WayCreatePageState extends State<WayCreatePage> {
   final _dropController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _remarkController = TextEditingController();
+
+  // --- Finance Controllers ---
+  final _deliveryChargesController = TextEditingController();
+  final _riderFeeController = TextEditingController();
+  final _parcelValueController = TextEditingController();
+  final _amountToCollectController = TextEditingController();
 
   // First, it helps to define your options clearly, perhaps as a final variable in your State class:
   final Map<String, String> _statusOptions = {
@@ -51,11 +58,18 @@ class _WayCreatePageState extends State<WayCreatePage> {
   final ImagePicker _picker = ImagePicker();
   List<File> _selectedImages = [];
 
+  // --- Finance State ---
+  String _paymentType = 'cod'; // 'cod' or 'prepaid'
+  String _whoPaid = 'receiver'; // 'sender' or 'receiver'
+
 
   @override
   void initState() {
     super.initState();
     _fetchRiders();
+    // Add listeners for auto-calculating Amount to Collect
+    _deliveryChargesController.addListener(_calculateAmountToCollect);
+    _parcelValueController.addListener(_calculateAmountToCollect);
   }
 
   @override
@@ -164,6 +178,34 @@ class _WayCreatePageState extends State<WayCreatePage> {
     setState(() {
       _selectedImages.removeAt(index);
     });
+  }
+// --- UX: Auto-Calculate Finance ---
+  void _calculateAmountToCollect() {
+    if (_paymentType == 'cod') {
+      double parcel = double.tryParse(_parcelValueController.text) ?? 0;
+      double delivery = double.tryParse(_deliveryChargesController.text) ?? 0;
+
+      double total = parcel;
+      // If the receiver is paying for the delivery charges, add it to the collection amount
+      if (_whoPaid == 'receiver') {
+        total += delivery;
+      }
+
+      // Update controller only if it differs to prevent cursor jumping
+      String newTotal = total.toStringAsFixed(0);
+      if (_amountToCollectController.text != newTotal) {
+        _amountToCollectController.text = newTotal;
+      }
+    } else {
+      // If prepaid, rider collects 0
+      if (_amountToCollectController.text != '0') {
+        _amountToCollectController.text = '0';
+      }
+    }
+  }
+  void _onPaymentStateChanged() {
+    _calculateAmountToCollect();
+    setState(() {}); // Trigger rebuild for ChoiceChips
   }
 
   // --- Main Submission Logic ---
@@ -702,6 +744,146 @@ class _WayCreatePageState extends State<WayCreatePage> {
 
 
                       const SizedBox(height: 40),
+
+                      // --- NEW: Finance Section ---
+                      _buildSectionHeader('ငွေကြေးဆိုင်ရာ အချက်အလက်များ'),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // System Options
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('ပစ္စည်း ငွေချေစနစ်', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        children: [
+                                          ChoiceChip(
+                                            label: const Text('COD'),
+                                            selected: _paymentType == 'cod',
+                                            onSelected: (_) { _paymentType = 'cod'; _onPaymentStateChanged(); },
+                                            selectedColor: Colors.green.shade100,
+                                            showCheckmark: false,
+                                          ),
+                                          ChoiceChip(
+                                            label: const Text('Prepaid'),
+                                            selected: _paymentType == 'prepaid',
+                                            onSelected: (_) { _paymentType = 'prepaid'; _onPaymentStateChanged(); },
+                                            selectedColor: Colors.blue.shade100,
+                                            showCheckmark: false,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 32),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('ပို့ဆောင်ခရှင်းမည့်သူ', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        children: [
+                                          ChoiceChip(
+                                            label: const Text('Receiver'),
+                                            selected: _whoPaid == 'receiver',
+                                            onSelected: (_) { _whoPaid = 'receiver'; _onPaymentStateChanged(); },
+                                            selectedColor: Colors.orange.shade100,
+                                            showCheckmark: false,
+                                          ),
+                                          ChoiceChip(
+                                            label: const Text('Sender'),
+                                            selected: _whoPaid == 'sender',
+                                            onSelected: (_) { _whoPaid = 'sender'; _onPaymentStateChanged(); },
+                                            selectedColor: Colors.purple.shade100,
+                                            showCheckmark: false,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const Divider(height: 32),
+                            const SizedBox(height: 16),
+                            // Values Data Entry
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _parcelValueController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*'))],
+                                    decoration: _buildInputDecoration('ပစ္စည်းတန်ဖိုး', Icons.inventory),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _deliveryChargesController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*'))],
+                                    decoration: _buildInputDecoration('ပို့ဆောင်ခ', Icons.local_shipping),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _amountToCollectController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*'))],
+                                    decoration: _buildInputDecoration('ကောက်ခံရန်ငွေ', Icons.account_balance_wallet).copyWith(
+                                      // Visually highlight this field
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: Colors.green.shade600, width: 2),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _riderFeeController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*'))],
+                                    decoration: _buildInputDecoration('Rider ရမည့်ငွေ', Icons.sports_motorsports),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
                     ],
                   ),
                 ),
