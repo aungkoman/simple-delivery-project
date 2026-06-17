@@ -38,6 +38,30 @@ class _WayCreatePageState extends State<WayCreatePage> {
     'assigned': 'Rider တာဝန်ပေးပြီး',
   };
 
+  final Map<String, String> _payStatusOptions = {
+    'prepaid': 'Prepaid',
+    'pending': 'Pending',
+    'collected': 'Collected',
+    'remitted_to_office': 'Remitted to Office',
+    'lost': 'Lost',
+  };
+
+  final Map<String, String> _riderFeeStatusOptions = {
+    'pending': 'Pending',
+    'settled': 'Settled',
+    'refund': 'Refund',
+  };
+
+  final Map<String, String> _senderPayoutStatusOptions = {
+    'not_applicable': 'Not Applicable',
+    'pending': 'Pending',
+    'advanced_paid': 'Advanced Paid',
+    'settled': 'Settled',
+    'refund_requested': 'Refund Requested',
+    'refunded_by_sender': 'Refunded by Sender',
+  };
+
+
 
   // --- State Variables ---
   bool _isLoading = true;
@@ -59,8 +83,13 @@ class _WayCreatePageState extends State<WayCreatePage> {
   List<File> _selectedImages = [];
 
   // --- Finance State ---
-  String _paymentType = 'cod'; // 'cod' or 'prepaid'
-  String _whoPaid = 'receiver'; // 'sender' or 'receiver'
+  String _paymentType = 'prepaid'; // 'cod' or 'prepaid'
+  String _whoPaid = 'sender'; // 'sender' or 'receiver'
+
+  // Finance Tracking State
+  String _payStatus = 'pending';
+  String _riderFeeStatus = 'pending';
+  String _senderPayoutStatus = 'pending';
 
 
   @override
@@ -208,6 +237,53 @@ class _WayCreatePageState extends State<WayCreatePage> {
     setState(() {}); // Trigger rebuild for ChoiceChips
   }
 
+
+  // Reusable component for horizontal scrollable chips
+  Widget _buildHorizontalChoiceChips({
+    required Map<String, String> options,
+    required String selectedValue,
+    required ValueChanged<String> onSelected,
+    Color activeColor = Colors.indigo,
+  }) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: options.entries.map((entry) {
+          final bool isSelected = selectedValue == entry.key;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ChoiceChip(
+              label: Text(entry.value),
+              selected: isSelected,
+              onSelected: (bool selected) {
+                if (selected && selectedValue != entry.key) {
+                  onSelected(entry.key);
+                }
+              },
+              showCheckmark: false,
+              selectedColor: activeColor.withOpacity(0.15),
+              backgroundColor: Colors.grey.shade100,
+              side: BorderSide(
+                color: isSelected ? activeColor : Colors.transparent,
+                width: 1.5,
+              ),
+              labelStyle: TextStyle(
+                color: isSelected ? activeColor : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   // --- Main Submission Logic ---
   Future<void> _createWay() async {
     FocusScope.of(context).unfocus();
@@ -286,6 +362,13 @@ class _WayCreatePageState extends State<WayCreatePage> {
       }
 
 
+      // 3. PARSE FINANCIAL DATA
+      final deliveryCharges = double.tryParse(_deliveryChargesController.text.trim()) ?? 0.0;
+      final riderFee = double.tryParse(_riderFeeController.text.trim()) ?? 0.0;
+      final parcelValue = double.tryParse(_parcelValueController.text.trim()) ?? 0.0;
+      final amountToCollect = double.tryParse(_amountToCollectController.text.trim()) ?? 0.0;
+
+
       // 2. CREATE THE DELIVERY WAY
       await supabase.from('ways').insert({
         'customer_id': _selectedCustomerId,
@@ -296,6 +379,18 @@ class _WayCreatePageState extends State<WayCreatePage> {
         'remark': _remarkController.text.trim(),
         'status': _selectedStatus,
         'images': uploadedImageUrls, // Saving the array of URLs
+
+        // Finance Fields
+        'payment_type': _paymentType,
+        'who_paid': _whoPaid,
+        'delivery_charges': deliveryCharges,
+        'rider_fee': riderFee,
+        'parcel_value': parcelValue,
+        'amount_to_collect': amountToCollect,
+        // Status Trackers
+        'pay_status': _payStatus,
+        'rider_fee_status': _riderFeeStatus,
+        'sender_payout_status': _senderPayoutStatus,
       });
 
       if (mounted) {
@@ -883,6 +978,38 @@ class _WayCreatePageState extends State<WayCreatePage> {
                         ),
                       ),
                       const SizedBox(height: 28),
+
+                      const SizedBox(height: 32),
+
+                      // --- NEW: Status Trackers (Horizontal Chips) ---
+                      const Text('Customer Payment Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      const SizedBox(height: 8),
+                      _buildHorizontalChoiceChips(
+                        options: _payStatusOptions,
+                        selectedValue: _payStatus,
+                        activeColor: Colors.blue.shade700,
+                        onSelected: (val) => setState(() => _payStatus = val),
+                      ),
+
+                      const SizedBox(height: 20),
+                      const Text('Rider Fee Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      const SizedBox(height: 8),
+                      _buildHorizontalChoiceChips(
+                        options: _riderFeeStatusOptions,
+                        selectedValue: _riderFeeStatus,
+                        activeColor: Colors.orange.shade700,
+                        onSelected: (val) => setState(() => _riderFeeStatus = val),
+                      ),
+
+                      const SizedBox(height: 20),
+                      const Text('Sender Payout Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      const SizedBox(height: 8),
+                      _buildHorizontalChoiceChips(
+                        options: _senderPayoutStatusOptions,
+                        selectedValue: _senderPayoutStatus,
+                        activeColor: Colors.purple.shade700,
+                        onSelected: (val) => setState(() => _senderPayoutStatus = val),
+                      ),
 
                     ],
                   ),

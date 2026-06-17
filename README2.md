@@ -26,6 +26,11 @@ column ထဲမှာ ထည့်ထားတယ်။
 
 ကောက်ပြီးပြီလား၊ ငွေရှင်းပြီးပြီလား ဆိုတာ ထည့်ရမယ်။
 
+https://supabase.com/dashboard/project/nhyeutkgxyiqcxrfojcq/database/types
+
+databases/ types များမှာ ကြည့်လို့ရပြီ.
+
+
 
 
 ## 2026-06-16
