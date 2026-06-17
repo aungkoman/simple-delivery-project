@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:simpledelivery/way/way_detail_read_only_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,6 +29,13 @@ class _WayEditPageState extends State<WayEditPage> {
   final _descriptionController = TextEditingController();
   final _remarkController = TextEditingController();
 
+  // --- NEW: Finance Controllers ---
+  final _deliveryChargesController = TextEditingController();
+  final _riderFeeController = TextEditingController();
+  final _parcelValueController = TextEditingController();
+  final _amountToCollectController = TextEditingController();
+
+
   bool _isLoading = true;
   bool _isSubmitting = false;
 
@@ -44,6 +52,14 @@ class _WayEditPageState extends State<WayEditPage> {
   List<File> _newLocalImages = [];      // New images picked from device
   List<String> _deletedImageUrls = [];  // Track URLs the user wants to delete
 
+  // --- NEW: Finance State & Status Tracking ---
+  String _paymentType = 'prepaid';
+  String _whoPaid = 'sender';
+  String _payStatus = 'pending';
+  String _riderFeeStatus = 'pending';
+  String _senderPayoutStatus = 'pending';
+
+
   final List<Map<String, String>> _statusOptions = [
     {'value': 'pending', 'label': 'Pending'},
     {'value': 'preparing', 'label': 'Preparing'},
@@ -53,6 +69,30 @@ class _WayEditPageState extends State<WayEditPage> {
     {'value': 'dropped', 'label': 'Delivered'},
     {'value': 'cancelled', 'label': 'Cancelled'},
   ];
+
+  final Map<String, String> _payStatusOptions = {
+    'prepaid': 'Prepaid',
+    'pending': 'Pending',
+    'collected': 'Collected',
+    'remitted_to_office': 'Remitted to Office',
+    'lost': 'Lost',
+  };
+
+  final Map<String, String> _riderFeeStatusOptions = {
+    'pending': 'Pending',
+    'settled': 'Settled',
+    'refund': 'Refund',
+  };
+
+  final Map<String, String> _senderPayoutStatusOptions = {
+    'not_applicable': 'Not Applicable',
+    'pending': 'Pending',
+    'advanced_paid': 'Advanced Paid',
+    'settled': 'Settled',
+    'refund_requested': 'Refund Requested',
+    'refunded_by_sender': 'Refunded by Sender',
+  };
+
 
   @override
   void initState() {
@@ -79,6 +119,20 @@ class _WayEditPageState extends State<WayEditPage> {
     final validValues = _statusOptions.map((opt) => opt['value']).toList();
     _selectedStatus = validValues.contains(currentStatus) ? currentStatus : 'pending';
 
+    // --- NEW: Initialize Finance Fields ---
+    _parcelValueController.text = (widget.wayData['parcel_value'] ?? 0.0).toStringAsFixed(0);
+    _deliveryChargesController.text = (widget.wayData['delivery_charges'] ?? 0.0).toStringAsFixed(0);
+    _amountToCollectController.text = (widget.wayData['amount_to_collect'] ?? 0.0).toStringAsFixed(0);
+    _riderFeeController.text = (widget.wayData['rider_fee'] ?? 0.0).toStringAsFixed(0);
+
+
+    // --- NEW: Initialize Finance States ---
+    _paymentType = widget.wayData['payment_type'] ?? 'prepaid';
+    _whoPaid = widget.wayData['who_paid'] ?? 'sender';
+    _payStatus = widget.wayData['pay_status'] ?? 'pending';
+    _riderFeeStatus = widget.wayData['rider_fee_status'] ?? 'pending';
+    _senderPayoutStatus = widget.wayData['sender_payout_status'] ?? 'pending';
+
     _fetchUsersForDropdowns();
 
     // --- NEW: Center the selected status after the first frame ---
@@ -100,6 +154,34 @@ class _WayEditPageState extends State<WayEditPage> {
       }
     }
   }
+
+  // --- UX: Auto-Calculate Finance ---
+  void _calculateAmountToCollect() {
+    if (_paymentType == 'cod') {
+      double parcel = double.tryParse(_parcelValueController.text) ?? 0;
+      double delivery = double.tryParse(_deliveryChargesController.text) ?? 0;
+
+      double total = parcel;
+      if (_whoPaid == 'receiver') {
+        total += delivery;
+      }
+
+      String newTotal = total.toStringAsFixed(0);
+      if (_amountToCollectController.text != newTotal) {
+        _amountToCollectController.text = newTotal;
+      }
+    } else {
+      if (_amountToCollectController.text != '0') {
+        _amountToCollectController.text = '0';
+      }
+    }
+  }
+
+  void _onPaymentStateChanged() {
+    _calculateAmountToCollect();
+    setState(() {});
+  }
+
 
   @override
   void dispose() {
@@ -233,7 +315,11 @@ class _WayEditPageState extends State<WayEditPage> {
       }
 
 
-
+      // 3. PARSE FINANCIAL DATA
+      final deliveryCharges = double.tryParse(_deliveryChargesController.text.trim()) ?? 0.0;
+      final riderFee = double.tryParse(_riderFeeController.text.trim()) ?? 0.0;
+      final parcelValue = double.tryParse(_parcelValueController.text.trim()) ?? 0.0;
+      final amountToCollect = double.tryParse(_amountToCollectController.text.trim()) ?? 0.0;
 
       await supabase.from('ways').update({
         'customer_id': _selectedCustomerId,
@@ -244,6 +330,20 @@ class _WayEditPageState extends State<WayEditPage> {
         'remark': _remarkController.text.trim(),
         'status': _selectedStatus,
         'images': finalImageUrls, // Save the updated array of URLs
+
+        // Updated Finance Fields
+        'payment_type': _paymentType,
+        'who_paid': _whoPaid,
+        'delivery_charges': deliveryCharges,
+        'rider_fee': riderFee,
+        'parcel_value': parcelValue,
+        'amount_to_collect': amountToCollect,
+
+        // Updated Trackers
+        'pay_status': _payStatus,
+        'rider_fee_status': _riderFeeStatus,
+        'sender_payout_status': _senderPayoutStatus,
+
       }).eq('id', widget.wayData['id']);
 
       if (mounted) {
@@ -289,6 +389,47 @@ class _WayEditPageState extends State<WayEditPage> {
       child: Text(
         title,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+      ),
+    );
+  }
+
+
+  Widget _buildHorizontalChoiceChips({
+    required Map<String, String> options,
+    required String selectedValue,
+    required ValueChanged<String> onSelected,
+    Color activeColor = Colors.indigo,
+  }) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: options.entries.map((entry) {
+          final bool isSelected = selectedValue == entry.key;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ChoiceChip(
+              label: Text(entry.value),
+              selected: isSelected,
+              onSelected: (bool selected) {
+                if (selected && selectedValue != entry.key) {
+                  onSelected(entry.key);
+                }
+              },
+              showCheckmark: false,
+              selectedColor: activeColor.withOpacity(0.15),
+              backgroundColor: Colors.grey.shade100,
+              side: BorderSide(color: isSelected ? activeColor : Colors.transparent, width: 1.5),
+              labelStyle: TextStyle(
+                color: isSelected ? activeColor : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -529,7 +670,157 @@ class _WayEditPageState extends State<WayEditPage> {
                           child: Text('No images attached to this delivery.', style: TextStyle(color: Colors.grey.shade500, fontStyle: FontStyle.italic)),
                         ),
 
-                      const SizedBox(height: 60),
+                      // --- NEW: Finance Section ---
+                      _buildSectionHeader('ငွေကြေးဆိုင်ရာ အချက်အလက်များ (Financial Details)'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('ပစ္စည်း ငွေချေစနစ် (Payment Type)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  children: [
+                                    ChoiceChip(
+                                      label: const Text('COD'),
+                                      selected: _paymentType == 'cod',
+                                      onSelected: (_) { _paymentType = 'cod'; _onPaymentStateChanged(); },
+                                      selectedColor: Colors.green.shade100,
+                                      backgroundColor: Colors.grey.shade200,
+                                      showCheckmark: false,
+                                    ),
+                                    ChoiceChip(
+                                      label: const Text('Prepaid'),
+                                      selected: _paymentType == 'prepaid',
+                                      onSelected: (_) { _paymentType = 'prepaid'; _onPaymentStateChanged(); },
+                                      selectedColor: Colors.green.shade100,
+                                      backgroundColor: Colors.grey.shade200,
+                                      showCheckmark: false,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('ပို့ဆောင်ခရှင်းမည့်သူ (Who Paid)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  children: [
+                                    ChoiceChip(
+                                      label: const Text('Receiver'),
+                                      selected: _whoPaid == 'receiver',
+                                      onSelected: (_) { _whoPaid = 'receiver'; _onPaymentStateChanged(); },
+                                      selectedColor: Colors.green.shade100,
+                                      backgroundColor: Colors.grey.shade200, // <-- Makes the inactive chip grey
+                                      showCheckmark: false,
+                                    ),
+                                    ChoiceChip(
+                                      label: const Text('Sender'),
+                                      selected: _whoPaid == 'sender',
+                                      onSelected: (_) { _whoPaid = 'sender'; _onPaymentStateChanged(); },
+                                      selectedColor: Colors.green.shade100,
+                                      backgroundColor: Colors.grey.shade200, // <-- Makes the inactive chip grey
+                                      showCheckmark: false,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _parcelValueController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*'))],
+                              decoration: _buildInputDecoration('ပစ္စည်းတန်ဖိုး', Icons.inventory),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _deliveryChargesController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*'))],
+                              decoration: _buildInputDecoration('ပို့ဆောင်ခ', Icons.local_shipping),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _amountToCollectController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*'))],
+                              decoration: _buildInputDecoration('ကောက်ခံရန်ငွေ', Icons.account_balance_wallet).copyWith(
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: Colors.green.shade600, width: 2),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _riderFeeController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*'))],
+                              decoration: _buildInputDecoration('Rider ရမည့်ငွေ', Icons.sports_motorsports),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // --- NEW: Status Trackers ---
+                      const Text('Customer Payment Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      const SizedBox(height: 8),
+                      _buildHorizontalChoiceChips(
+                        options: _payStatusOptions,
+                        selectedValue: _payStatus,
+                        activeColor: Colors.blue.shade700,
+                        onSelected: (val) => setState(() => _payStatus = val),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text('Rider Fee Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      const SizedBox(height: 8),
+                      _buildHorizontalChoiceChips(
+                        options: _riderFeeStatusOptions,
+                        selectedValue: _riderFeeStatus,
+                        activeColor: Colors.orange.shade700,
+                        onSelected: (val) => setState(() => _riderFeeStatus = val),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text('Sender Payout Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      const SizedBox(height: 8),
+                      _buildHorizontalChoiceChips(
+                        options: _senderPayoutStatusOptions,
+                        selectedValue: _senderPayoutStatus,
+                        activeColor: Colors.purple.shade700,
+                        onSelected: (val) => setState(() => _senderPayoutStatus = val),
+                      ),
+                      const SizedBox(height: 28),
+
 
 
 

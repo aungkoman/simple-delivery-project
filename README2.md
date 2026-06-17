@@ -30,7 +30,18 @@ https://supabase.com/dashboard/project/nhyeutkgxyiqcxrfojcq/database/types
 
 databases/ types များမှာ ကြည့်လို့ရပြီ.
 
+```sql
+SELECT setval(
+  pg_get_serial_sequence('ways', 'id'), 
+  COALESCE(max(id), 0) + 1, 
+  false
+) FROM ways;
 
+```
+
+- [x] way create
+- [ ] way edit
+- [ ] way detail
 
 
 ## 2026-06-16
