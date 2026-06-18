@@ -17,6 +17,12 @@ I/flutter ( 7854): FCM Device Token: d7lTAa0BRVujeZVJL6NePL:APA91bEP6PlMN1TmRqev
 Because you are calling supabase.auth.signUp() from the client app to automatically create the new customer account, Supabase will automatically log the Admin out and log in as the newly created custome
 
 
+
+## Let's add Cash Management 
+
+- [ ] list of way based on their status
+
+
 ## 2026-06-17 enum 
 
 column ထဲမှာ ထည့်ထားတယ်။
