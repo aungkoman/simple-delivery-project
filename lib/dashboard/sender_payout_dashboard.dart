@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../finance/customer_ledger_detail_page.dart';
+
 class SenderPayoutDashboard extends StatefulWidget {
   const SenderPayoutDashboard({super.key});
 
@@ -132,7 +134,8 @@ class _SenderPayoutDashboardState extends State<SenderPayoutDashboard> {
       // 2. Update Delivery Fees to 'settled'
       await supabase
           .from('ways')
-          .update({'pay_status': 'settled'})
+          // .update({'pay_status': 'settled'})
+          .update({'sender_payout_status': 'settled'})
           .inFilter('id', wayIds)
           .eq('who_paid', 'sender');
 
@@ -147,6 +150,9 @@ class _SenderPayoutDashboardState extends State<SenderPayoutDashboard> {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
+    }
+    finally{
+      setState(() => _isSubmitting = false);
     }
   }
 
@@ -227,108 +233,131 @@ class _SenderPayoutDashboardState extends State<SenderPayoutDashboard> {
                 final double feesOwed = ledger['fees_owed_by_customer'];
                 final double netPayout = ledger['net_payout'];
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
-                  ),
-                  child: Column(
-                    children: [
-                      // Customer Info Header
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: Colors.blueGrey.shade50,
-                              child: Icon(Icons.storefront, color: Colors.blueGrey.shade700),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () async {
+                    // Navigate to the detail page and wait for a result
+                    final bool? didSettle = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CustomerLedgerDetailPage(
+                          customerId: ledger['customer_id'],
+                          customerName: ledger['customer_name'],
+                          wayIds: ledger['way_ids'],
+                          netPayout: netPayout,
+                        ),
+                      ),
+                    );
+
+                    // If the admin clicked "Settle" on the detail page, refresh this dashboard!
+                    if (didSettle == true) {
+                      setState(() => _isLoading = true);
+                      _fetchCustomerLedgers();
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
+                    ),
+                    child: Column(
+                      children: [
+                        // Customer Info Header
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Colors.blueGrey.shade50,
+                                child: Icon(Icons.storefront, color: Colors.blueGrey.shade700),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(ledger['customer_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    Text(ledger['customer_phone'], style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
+                                child: Text('${ledger['order_count']} Orders', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+                              )
+                            ],
+                          ),
+                        ),
+                        Divider(height: 1, color: Colors.grey.shade200),
+                  
+                        // Ledger Math
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(ledger['customer_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                  Text(ledger['customer_phone'], style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                                  const Text('COD to Remit (Owed to Sender)', style: TextStyle(color: Colors.grey)),
+                                  Text(_formatCurrency(codOwed), style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.green)),
                                 ],
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
-                              child: Text('${ledger['order_count']} Orders', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
-                            )
-                          ],
-                        ),
-                      ),
-                      Divider(height: 1, color: Colors.grey.shade200),
-
-                      // Ledger Math
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('COD to Remit (Owed to Sender)', style: TextStyle(color: Colors.grey)),
-                                Text(_formatCurrency(codOwed), style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.green)),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Delivery Fees (Owed to Us)', style: TextStyle(color: Colors.grey)),
-                                Text('- ${_formatCurrency(feesOwed)}', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
-                              ],
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              child: Divider(),
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(netPayout >= 0 ? 'NET PAYOUT' : 'SENDER OWES US', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                Text(
-                                  _formatCurrency(netPayout.abs()),
-                                  style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w900,
-                                      color: netPayout >= 0 ? Colors.black87 : Colors.red.shade700
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Delivery Fees (Owed to Us)', style: TextStyle(color: Colors.grey)),
+                                  Text('- ${_formatCurrency(feesOwed)}', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+                                ],
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Divider(),
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(netPayout >= 0 ? 'NET PAYOUT' : 'SENDER OWES US', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(
+                                    _formatCurrency(netPayout.abs()),
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w900,
+                                        color: netPayout >= 0 ? Colors.black87 : Colors.red.shade700
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                  
+                              // Action Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: _isSubmitting
+                                      ? null
+                                      : () => _settleCustomerBalance(ledger['customer_id'], ledger['way_ids'], netPayout),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: netPayout >= 0 ? Colors.blueGrey.shade900 : Colors.orange.shade700,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    elevation: 0,
+                                  ),
+                                  child: Text(
+                                      netPayout >= 0 ? 'Mark as Transferred' : 'Mark as Collected',
+                                      style: const TextStyle(fontWeight: FontWeight.bold)
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Action Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: _isSubmitting
-                                    ? null
-                                    : () => _settleCustomerBalance(ledger['customer_id'], ledger['way_ids'], netPayout),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: netPayout >= 0 ? Colors.blueGrey.shade900 : Colors.orange.shade700,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  elevation: 0,
-                                ),
-                                child: Text(
-                                    netPayout >= 0 ? 'Mark as Transferred' : 'Mark as Collected',
-                                    style: const TextStyle(fontWeight: FontWeight.bold)
-                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
