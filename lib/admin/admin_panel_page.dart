@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:simpledelivery/admin/admin_live_map_page.dart';
 import 'package:simpledelivery/admin/search_way_page.dart';
 import 'package:simpledelivery/dashboard/financial_dashboard_page.dart';
+import 'package:simpledelivery/dashboard/sender_payout_dashboard.dart';
 import 'package:simpledelivery/misc/township_list_page.dart';
 import 'package:simpledelivery/utils/number_converter.dart';
 import 'package:simpledelivery/way/way_create_page.dart';
@@ -367,6 +368,14 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const WayListingByBillingPage()));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.currency_exchange_outlined, color: Colors.black54),
+                  title: const Text('Sender Payout Dashboard'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const SenderPayoutDashboard()));
                   },
                 ),
                 ListTile(
