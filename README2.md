@@ -22,7 +22,11 @@ Because you are calling supabase.auth.signUp() from the client app to automatica
 
 - [ ] list of way based on their status
 
+which kind of billing info we need,
 
+- [ ] rider's pocket in hand cash amount
+- [ ] hub , finicial stauts, amount to get / paid to rider, amount to get / paid to customer 
+- [ ] 
 ## 2026-06-17 enum 
 
 column ထဲမှာ ထည့်ထားတယ်။
