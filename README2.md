@@ -37,6 +37,8 @@ step 3 : pay to seller
 Need to refactor.
 so no more spelling and guessing.
 
+currently, just vibe coding.
+
 
 ## 2026-06-17 enum 
 
