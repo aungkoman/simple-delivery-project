@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../finance/rider_cash_collection_page.dart';
+
 class FinancialDashboardPage extends StatefulWidget {
   const FinancialDashboardPage({super.key});
 
@@ -68,7 +70,7 @@ class _FinancialDashboardPageState extends State<FinancialDashboardPage> {
             final riderId = riderData['id'];
             final riderName = riderData['full_name'] ?? 'Unknown';
             if (!riderCashMap.containsKey(riderId)) {
-              riderCashMap[riderId] = {'name': riderName, 'amount': 0.0, 'order_count': 0};
+              riderCashMap[riderId] = {'id': riderId, 'name': riderName, 'amount': 0.0, 'order_count': 0};
             }
             riderCashMap[riderId]!['amount'] += amountToCollect;
             riderCashMap[riderId]!['order_count'] += 1;
@@ -283,38 +285,56 @@ class _FinancialDashboardPageState extends State<FinancialDashboardPage> {
                 separatorBuilder: (context, index) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final rider = _ridersHoldingCashList[index];
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.shade100),
-                      // Highlight the worst offender with a shadow
-                      boxShadow: index == 0 ? [BoxShadow(color: Colors.red.shade100, blurRadius: 8, offset: const Offset(0, 2))] : [],
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: index == 0 ? Colors.red.shade100 : Colors.grey.shade100,
-                          foregroundColor: index == 0 ? Colors.red.shade700 : Colors.black54,
-                          child: Text('${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(rider['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                              const SizedBox(height: 4),
-                              Text('Across ${rider['order_count']} orders', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-                            ],
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () async {
+                      // 1. Navigate to the new collection page
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RiderCashCollectionPage(
+                            riderId: rider['id'],
+                            riderName: rider['name'],
                           ),
                         ),
-                        Text(
-                          _formatCurrency(rider['amount']),
-                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.orange.shade700),
-                        ),
-                      ],
+                      );
+                      // 2. Refresh the dashboard when the admin comes back!
+                      setState(() => _isLoading = true);
+                      _fetchFinancialData();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade100),
+                        // Highlight the worst offender with a shadow
+                        boxShadow: index == 0 ? [BoxShadow(color: Colors.red.shade100, blurRadius: 8, offset: const Offset(0, 2))] : [],
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: index == 0 ? Colors.red.shade100 : Colors.grey.shade100,
+                            foregroundColor: index == 0 ? Colors.red.shade700 : Colors.black54,
+                            child: Text('${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(rider['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                const SizedBox(height: 4),
+                                Text('Across ${rider['order_count']} orders', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            _formatCurrency(rider['amount']),
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.orange.shade700),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
