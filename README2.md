@@ -25,8 +25,19 @@ Because you are calling supabase.auth.signUp() from the client app to automatica
 which kind of billing info we need,
 
 - [ ] rider's pocket in hand cash amount
-- [ ] hub , finicial stauts, amount to get / paid to rider, amount to get / paid to customer 
-- [ ] 
+- [ ] hub , finicial stauts, amount to get / paid to rider, amount to get / paid to customer
+
+
+Main actions of financial dashboard 
+step 1 : collect cash from rider
+step 2 : payout rider
+step 3 : pay to seller 
+
+
+Need to refactor.
+so no more spelling and guessing.
+
+
 ## 2026-06-17 enum 
 
 column ထဲမှာ ထည့်ထားတယ်။

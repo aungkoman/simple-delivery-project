@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../finance/rider_cash_collection_page.dart';
+import '../finance/rider_fee_payout_page.dart';
 
 class FinancialDashboardPage extends StatefulWidget {
   const FinancialDashboardPage({super.key});
@@ -23,6 +24,7 @@ class _FinancialDashboardPageState extends State<FinancialDashboardPage> {
 
   // --- Actionable Data ---
   List<Map<String, dynamic>> _ridersHoldingCashList = [];
+  List<Map<String, dynamic>> _ridersOwedFeesList = []; // NEW: List for rider payouts
 
   @override
   void initState() {
@@ -46,6 +48,7 @@ class _FinancialDashboardPageState extends State<FinancialDashboardPage> {
 
       // Temporary map to calculate which specific riders are holding cash
       Map<String, Map<String, dynamic>> riderCashMap = {};
+      Map<String, Map<String, dynamic>> riderOwedMap = {}; // NEW: Map for owed fees
 
       for (var way in response) {
         final double amountToCollect = double.tryParse(way['amount_to_collect']?.toString() ?? '0') ?? 0;
@@ -87,6 +90,18 @@ class _FinancialDashboardPageState extends State<FinancialDashboardPage> {
         // Unsettled rider fees for completed deliveries
         if (opStatus == 'dropped' && riderFeeStatus == 'pending') {
           owedRiders += riderFee;
+
+          // NEW: Add to individual rider's owed tally
+          final riderData = way['rider'];
+          if (riderData != null) {
+            final riderId = riderData['id'];
+            final riderName = riderData['full_name'] ?? 'Unknown';
+            if (!riderOwedMap.containsKey(riderId)) {
+              riderOwedMap[riderId] = {'id': riderId, 'name': riderName, 'amount': 0.0, 'order_count': 0};
+            }
+            riderOwedMap[riderId]!['amount'] += riderFee;
+            riderOwedMap[riderId]!['order_count'] += 1;
+          }
         }
 
         // 4. HUB GROSS REVENUE
@@ -100,6 +115,9 @@ class _FinancialDashboardPageState extends State<FinancialDashboardPage> {
       List<Map<String, dynamic>> sortedRiders = riderCashMap.values.toList();
       sortedRiders.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
 
+      List<Map<String, dynamic>> sortedOwedRiders = riderOwedMap.values.toList();
+      sortedOwedRiders.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+
       if (mounted) {
         setState(() {
           _totalRiderHoldingCash = riderCash;
@@ -107,6 +125,7 @@ class _FinancialDashboardPageState extends State<FinancialDashboardPage> {
           _totalOwedToRiders = owedRiders;
           _expectedHubRevenue = hubRev;
           _ridersHoldingCashList = sortedRiders;
+          _ridersOwedFeesList = sortedOwedRiders; // Save the new list
           _isLoading = false;
         });
       }
@@ -339,6 +358,95 @@ class _FinancialDashboardPageState extends State<FinancialDashboardPage> {
                   );
                 },
               ),
+
+
+              // --- ACTIONABLE LIST 2: RIDER PAYOUTS (FEES) ---
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Rider Fee Payouts', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.indigo.shade50, borderRadius: BorderRadius.circular(20)),
+                    child: Text('${_ridersOwedFeesList.length} Riders', style: TextStyle(color: Colors.indigo.shade700, fontWeight: FontWeight.bold, fontSize: 12)),
+                  )
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              _ridersOwedFeesList.isEmpty
+                  ? Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+                child: Column(
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 48, color: Colors.green.shade300),
+                    const SizedBox(height: 12),
+                    Text('All rider fees are paid.', style: TextStyle(color: Colors.grey.shade600)),
+                  ],
+                ),
+              )
+                  : ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _ridersOwedFeesList.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final rider = _ridersOwedFeesList[index];
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () async{
+                      // Setup navigation for Rider Fee Payout Page here
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RiderFeePayoutPage(
+                            riderId: rider['id'],
+                            riderName: rider['name'],
+                          ),
+                        ),
+                      );
+                      setState(() => _isLoading = true);
+                      _fetchFinancialData();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.indigo.shade100),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.indigo.shade50,
+                            foregroundColor: Colors.indigo.shade700,
+                            child: const Icon(Icons.motorcycle, size: 20),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(rider['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                const SizedBox(height: 4),
+                                Text('Fees for ${rider['order_count']} delivered orders', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            _formatCurrency(rider['amount']),
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.indigo.shade700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 40),
             ],
           ),
         ),
