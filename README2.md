@@ -18,6 +18,11 @@ Because you are calling supabase.auth.signUp() from the client app to automatica
 
 
 
+## 2026-06-19 Happy Birthday , My Son
+
+- [ ] release financial dashboard
+
+
 ## Let's add Cash Management 
 
 - [ ] list of way based on their status
